@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Canvas Fun℠ Ver 6.5</title>
+</head>
+
+<body>
+	<h1>Canvas Fun℠ - Version 6.5</h1>
+	<p><strong>Copyright © & ™ & ℠ 2025 by Jeremiah Joseph Colella Drake.  By using this application, you are certifying that you have visited <em>sites.google.com/view/canvasfun/copyright-notice</em> and read the <em>Copyright Notice</em>.</strong></p>
+	
+  <a href="https://www.sites.google.com/view/canvasfun" target="_blank" style="position: absolute; left: 1465px; top: 3px"><img src="https://lh3.googleusercontent.com/d/1ZbNrB6YE_Cj5o744nKbFR9MsbRXv1GkZ" height="100" border="0"></a>
+  <a href="https://www.sites.google.com/view/canvasfun" target="_blank" style="position: absolute; left: 1250px; top: 3px"><img src="https://lh3.googleusercontent.com/d/1-kcycv9sDeSpTZ4PsI6M3b2NI24twbbt" height="75" border="0"></a>
+
+	<input type="text" id="text"style="color:blue"/>
+	
+	<script src="https://code.jquery.com/jquery-2.1.0.js"></script>
+	
+	<script type="text/javascript">
+    var indicateInfo = document.getElementById("text");
+    indicateInfo.style.width = "675px";
+	</script>
+
+  
+	
+	<script>
+	
+	//Setup:
+	
+	
+	//Set the paintbrush starting size
+	var size = 5;
+	var locationSize = size + 4;
+  var ssize = size;
+  var testingV = 1;
+  var mouseOption = false;
+	
+	//Set the starting color based on the user's preference
+	var color = prompt("In ONE word, please enter the color you'd like to draw with.");
+	
+	if (color !== "blue") {
+		if (color !== "green") {
+			if (color !== "darkgreen") {
+				if (color !== "forestgreen") {
+					if (color !== "lightgreen") {
+						if (color !== "darkblue") {
+							if (color !== "skyblue") {
+								if (color !== "lightblue") {
+									if (color !== "aqua") {
+										if (color !== "black") {
+											if (color !== "gray") {
+												if (color !== "red") {
+													if (color !== "darkred") {
+														if (color !== "orange") {
+															if (color !== "brown") {
+																if (color !== "gold") {
+																	if (color !== "yellow") {
+																		if (color !== "purple") {
+																			if (color !== "magenta") {
+																				if (color !== "pink") {
+																					if (color !== "white") {
+																						if (color !== "lightgray") {
+                                              if (color !== "blue") {
+		                                            if (color !== "Green") {
+			                                            if (color !== "Darkgreen") {
+				                                            if (color !== "Forestgreen") {
+					                                            if (color !== "Lightgreen") {
+						                                            if (color !== "Darkblue") {
+							                                            if (color !== "Skyblue") {
+								                                            if (color !== "Lightblue") {
+									                                            if (color !== "Aqua") {
+										                                            if (color !== "Black") {
+											                                            if (color !== "Gray") {
+												                                            if (color !== "Red") {
+													                                            if (color !== "Darkred") {
+														                                            if (color !== "Orange") {
+															                                            if (color !== "Brown") {
+																                                            if (color !== "Gold") {
+																	                                            if (color !== "Yellow") {
+																		                                            if (color !== "Purple") {
+																			                                            if (color !== "Magenta") {
+																				                                            if (color !== "Pink") {
+																					                                            if (color !== "White") {
+																						                                            if (color !== "Lightgray") {
+																							                                            alert("The color that you entered is currently unavailable.  Your starting color has been set to black.  You can change your paintbrush color anytime by clicking on a color in the pallete or by pressing the 'j' key.");
+																							                                            color = "Black";
+                                                                                        };
+                                                                                      };
+                                                                                    };
+                                                                                  };
+                                                                                };
+                                                                              };
+                                                                            };
+                                                                          };
+                                                                        };
+                                                                      };
+                                                                    };
+                                                                  };
+                                                                };
+                                                              };
+                                                            };
+                                                          };
+                                                        };
+                                                      };
+                                                    };
+                                                  };
+                                                };
+                                              };
+                                            };
+																					};
+																				};
+																			};
+																		};
+																	};
+																};
+															};
+														};
+													};
+												};
+											};
+										};
+									};
+								};
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+
+  function improveColor() {
+    if (color == "green") {
+      color = "Green";
+    }; if (color == "darkgreen") {
+      color = "Dark Green";
+    }; if (color == "Darkgreen") {
+      color = "Dark Green";
+    }; if (color == "forestgreen") {
+      color = "Forest Green"
+    }; 
+  };
+	
+  var penStatus = "Down";
+
+	var locationColor = "Aqua";
+	
+	//Place and setup the Canvas
+	function placeCanvas(name, x_pos, y_pos) {
+		var canvas=document.createElement("canvas"); 
+		canvas.id=name;
+		canvas.height="700"
+		canvas.width="800"
+		document.body.appendChild(canvas);
+		canvas.style.position = "absolute";
+		canvas.style.left = x_pos+'px';
+		canvas.style.top = y_pos+'px';
+	};	
+	placeCanvas("locationCanvas", 275, 150);
+	placeCanvas("canvas", 275, 150);
+	
+	var ctxl = locationCanvas.getContext("2d");
+	ctxl.strokeStyle = locationColor
+	var width = locationCanvas.width;
+	var height = locationCanvas.height;
+	
+	var ctx = canvas.getContext("2d");
+	ctx.strokeStyle = color
+	ctx.fillStyle = color
+	var width = canvas.width;
+	var height = canvas.height;
+	
+	if (color == "Aqua") {
+		locationColor = "Green";
+		ctxl.strokeStyle = "green";
+	};
+	if (ctx.strokeStyle !== "aqua") {
+		locationColor = "Aqua";
+		ctxl.strokeStyle = "aqua";
+	};
+	if (ctx.strokeStyle !== "Aqua") {
+		locationColor = "Aqua";
+		ctxl.strokeStyle = "aqua";
+	};
+	//Setup the Size and Color indicators
+	var colorIndicator = ("Color: " + color);
+	var sizeIndicator = ("Size: " + size);
+	var indicatorsText = (colorIndicator + "  " + sizeIndicator);
+	
+	//Image Placing Functions
+	function placeImage(name, src, green, height, width, x_pos, y_pos) {
+		var name=document.createElement("img"); 
+		name.src="https://lh3.googleusercontent.com/d/"+src;
+		name.id=green
+		name.height=height;
+		name.width=width;
+		document.body.appendChild(name);
+		name.style.position = "absolute";
+		name.style.left = x_pos+'px';
+		name.style.top = y_pos+'px';
+	};
+	
+	function placeOImage(name, src, green, height, x_pos, y_pos) {
+		var name=document.createElement("img"); 
+		name.src="https://lh3.googleusercontent.com/d/"+src;
+		name.id=green
+		name.height=height;
+		document.body.appendChild(name);
+		name.style.position = "absolute";
+		name.style.left = x_pos+'px';
+		name.style.top = y_pos+'px';
+	};
+
+  //Palette Button Effect Function
+  function paletteEffect(id, nColor) {
+    $("#"+id).click(function (event) {
+		color = nColor;
+		ctx.strokeStyle = id;
+		ctx.fillStyle = id;
+	  });
+  };
+	
+	//Place the Size and Color indicators
+	function placeIndicators(x_pos, y_pos) {
+		var indicators=document.createElement("plaintext");
+		indicators.plaintext="Blue!"
+		indicators.id="indicators";
+		indicators.height="400"
+		document.body.appendChild(indicators);
+		indicators.style.position = "absolute";
+		indicators.style.left = x_pos+'px';
+		indicators.style.top = y_pos+'px';
+	};
+
+  
+  placeIndicators(10, 700);
+	
+	
+	//Place the Left-Hand Side Menu Options
+	
+  placeOImage("privacy", "1YScKydVaBURUE_Bu_jKaD1ktARGar2Sz", "privacy", 20, 5, 55);
+	
+	//Place the "Paintbrushes" sign	
+	placeImage("indicators", "1tHew4DF_nwuBdY1zzipqsVakowQkY_o6", "indicators", 500, 200, 10, 150);
+  
+	
+	//Place and setup the "Small Brush"	
+	placeOImage("smallbrush", "15wCXQ4mAyMzMh6SVeArs528VvevCnlx4", "smallbrush", 60, 80, 250);	
+	
+	$("#smallbrush").click(function (event) {
+	size = 5
+	});
+	
+	//Place and setup the "Highlighter"
+	placeOImage("highlighter", "1X9fu1v2arzyoe1j8A_y0BP5crnkrvblM", "highlighter", 60, 80, 385);
+	
+	$("#highlighter").click(function (event) {
+	size = 11
+	});
+	
+	//Place and setup the "Large Brush"
+	placeOImage("largeBrush", "1jyDRjWQehWFUJXsVQ1Fexa04IqpMUz_O", "largeBrush", 60, 80, 510);
+	
+	$("#largeBrush").click(function (event) {
+	size = 17
+	});
+	
+	//Others
+	placeImage("otherSign", "1U0Snwmp3EvNakZ5hBMGsr5JP6XtaYAmY", "othersSign", 500, 200, 10, 600);
+	
+	//Placing and seting up the "Reset Canvas"
+	placeOImage("resetCanvas", "1MUFbB2f9uGsOkSSa5s-hLr6dHn63IqTH", "resetCanvas", 60, 80, 700);
+	
+	
+	var resetF = function() {
+    drawingXC = 400;
+    drawingYC = 350;
+    ball.x = 400;
+    ball.y = 350;
+    size = 5;
+    color = "Black";
+    ctx.fillStyle = "Black";
+    ctx.strokeStyle = "Black";
+    ctx.clearRect(0, 0, width, height);
+  };
+  
+	$("#resetCanvas").click(function (event) {
+    resetF();
+	});	
+	
+	
+	//Placing and setting up the palette
+	
+	
+	//Place and setup the top "Palette" sign
+	placeOImage("paletteSign", "188ySRlL1FavIEjksUeE4APNmm-rtbhI1", "paletteSign", 37, 1115, 150);
+		
+	//Place and setup Dark Green
+	placeImage("darkGreen", "1Ho2iahB7_VLXOtkZhgiqq7_q4jenMgD7", "darkGreen", 50, 130, 1100, 200);
+  paletteEffect("darkGreen", "Dark Green");
+	
+	//Place and Setup Forest Green
+	placeImage("forestGreen", "1WsCYKeJ37mxHCkcNR9q0aR_LzCupBUnu", "forestGreen", 50, 130, 1100, 250);
+	paletteEffect("forestGreen", "Forest Green");
+	
+	//Place and Setup Green
+	placeImage("green", "1Y6QFu1HJ0V263unDV4IqRTxoVL8Z74HZ", "green", 50, 130, 1100, 300);
+	paletteEffect("green", "Green");
+	
+	//Place and Setup Light Green
+	placeImage("lightGreen", "1qVihenMzvHoQ619QA9h5fKyzec-zST-h", "lightGreen", 50, 130, 1100, 350);
+	paletteEffect("lightGreen", "light Green");
+	
+	//Place and Setup Blue
+	placeImage("blue", "1SlRhs3JPwGGYp25EzQEkaZZiaoc0f8JQ", "blue", 50, 130, 1100, 400);
+	paletteEffect("blue", "Blue");
+	
+	//Place and Setup Dark Blue
+	placeImage("darkBlue", "17AS_PFKf0qhZjzL7eAgnGezPuICsrxrl", "darkBlue", 50, 130, 1100, 450);
+	paletteEffect("darkBlue", "Dark Blue");
+	
+	//Place and Setup Sky Blue
+	placeImage("skyBlue", "1L_keJ_5DI7XhibQdBn3HKEHpsZTa97fL", "skyBlue", 50, 130, 1100, 500);
+	paletteEffect("skyBlue", "Sky Blue");
+	
+	//Place and Setup Light Blue
+	placeImage("lightBlue", "1hihd2pw1-YP8cVLtKHHp0rEgbJ3_WRLq", "lightBlue", 50, 130, 1100, 550);
+	paletteEffect("lightBlue", "Light Blue");
+	
+	//Place and Setup Aqua
+	placeImage("aqua", "1S3hARWIO-rcQW25RYbARYPtpcumDzbFI", "aqua", 50, 130, 1100, 600);
+	paletteEffect("aqua", "Aqua");
+	
+	//Place and Setup Black
+	placeImage("black", "1_T_bYOO72g5GEKLj1RwwCLBAbDGnPuSu", "black", 50, 130, 1100, 650);
+  paletteEffect("black", "Black");
+	
+	//Place and Setup Gray
+	placeImage("gray", "1OFtnnguC-b07KDgM9KbQCZT0-PUIy-G_", "gray", 50, 130, 1100, 700);
+	paletteEffect("gray", "Gray");
+	
+	//Place and Setup Light Gray
+	placeImage("lightGray", "1dRWnuNNSUQrTw8RSgDJUyMBKJKbL5soi", "lightGray", 50, 130, 1230, 700);
+	paletteEffect("lightGray", "Light Gray");
+	
+	//Place and Setup Red
+	placeImage("red", "1_eTLoz9IeQVm-U3H_PMnQ7cQK5UI5ikM", "red", 50, 130, 1230, 200);
+	paletteEffect("red", "Red");
+	
+	//Place and Setup Dark Red
+	placeImage("darkRed", "1W1ieMCrEIjC_X_MF7HbEVW2TDyqX2y9g", "darkRed", 50, 130, 1230, 250);
+	paletteEffect("darkRed", "Dark Red");
+	
+	//Place and Setup Orange
+	placeImage("orange", "15LMuQY7FDc7VhDTBiCSo001iJmt_Gb4y", "orange", 50, 130, 1230, 300);
+  paletteEffect("orange", "Orange");
+	
+	//Place and Setup Brown
+	placeImage("brown", "14OXr-UpP-mfY3TcFjDTmNRsfopV3UHN7", "brown", 50, 130, 1230, 350);
+	paletteEffect("brown", "Brown");
+	
+	//Place and Setup Gold
+	placeImage("gold", "1L4UxAQiir2eL6Yweuw_3lq3P8uwE4d2u", "gold", 50, 130, 1230, 400);
+	paletteEffect("gold", "Gold");
+	
+	//Place and Setup Yellow
+	placeImage("yellow", "1J11d4HxkGhPYNdhS-3_xI4wVQgttGozd", "yellow", 50, 130, 1230, 450);
+	paletteEffect("yellow", "Yellow");
+	
+	//Place and Setup Purple
+	placeImage("purple", "10_W9jQeu_-E-b8QHeb3GqWAuVcMVWcoj", "purple", 50, 130, 1230, 500);
+	paletteEffect("purple", "Purple");
+	
+	//Place and Setup Magenta
+	placeImage("magenta", "1nxslGntZ6niLUk6_bFfGgAIyyQQq5WDT", "magenta", 50, 130, 1230, 550);
+	paletteEffect("magenta", "Magenta");
+	
+	//Place and Setup Pink
+	placeImage("pink", "1hAdwEk0chZ0T4b2WavLNR9OCZ28w-Nx7", "pink", 50, 130, 1230, 600);
+	paletteEffect("pink", "Pink");
+	
+	//Place and Setup White
+	placeImage("white", "1pcDRnGUEAd8YqEkh6uX_SBOpuWI46G3M", "white", 50, 130, 1230, 650);
+	paletteEffect("white", "White");
+
+  //Place and Setup Manual Color Selection Button
+	placeOImage("manual", "1yTN95IlDj-UBpr3c3NACpcN8JJDKR2LL", "manual", 55, 1260, 773);
+	$("#manual").click(function (event) {
+    color = prompt("In ONE word, please enter the new color you'd like to draw with.");
+	  ctx.strokeStyle = color;
+	  ctx.fillStyle = color;
+  });
+  
+	//Place and Setup *Palette*
+	placeOImage("palette", "1atmB2Klsu1Xvd1yB4hll8SERkKHzGKW_", "palette", 60, 1145, 773);
+	
+	var paletteClicks = 0
+  var cycleColors = function() {
+    ++paletteClicks;
+		if (paletteClicks == 23) {
+			paletteClicks = 1
+		};
+		if (paletteClicks == 1) {
+			color = "White";
+			ctx.strokeStyle = "white";
+			ctx.fillStyle = "white";
+		} else if (paletteClicks == 2) {
+			color = "Lightgray";
+			ctx.strokeStyle = "lightgray";
+			ctx.fillStyle = "lightgray";
+		} else if (paletteClicks == 3) {
+			color = "Gray";
+			ctx.strokeStyle = "gray";
+			ctx.fillStyle = "gray";
+		} else if (paletteClicks == 4) {
+			color = "Black";
+			ctx.strokeStyle = "black";
+			ctx.fillStyle = "black";
+		} else if (paletteClicks == 5) {
+			color = "Pink";
+			ctx.strokeStyle = "pink";
+			ctx.fillStyle = "pink";
+		} else if (paletteClicks == 6) {
+			color = "Magenta";
+			ctx.strokeStyle = "magenta";
+			ctx.fillStyle = "magenta";
+		} else if (paletteClicks == 7) {
+			color = "Purple";
+			ctx.strokeStyle = "purple";
+			ctx.fillStyle = "purple";
+		} else if (paletteClicks == 8) {
+			color = "Yellow";
+			ctx.strokeStyle = "yellow";
+			ctx.fillStyle = "yellow";
+		} else if (paletteClicks == 9) {
+			color = "Gold";
+			ctx.strokeStyle = "gold";
+			ctx.fillStyle = "gold";
+		} else if (paletteClicks == 10) {
+			color = "Brown";
+			ctx.strokeStyle = "brown";
+			ctx.fillStyle = "brown";
+		} else if (paletteClicks == 11) {
+			color = "Orange";
+			ctx.strokeStyle = "orange";
+			ctx.fillStyle = "orange";
+		} else if (paletteClicks == 12) {
+			color = "Darkred";
+			ctx.strokeStyle = "darkred";
+			ctx.fillStyle = "darkred";
+		} else if (paletteClicks == 13) {
+			color = "Red";
+			ctx.strokeStyle = "red";
+			ctx.fillStyle = "red";
+		} else if (paletteClicks == 14) {
+			color = "Aqua";
+			ctx.strokeStyle = "aqua";
+			ctx.fillStyle = "aqua";
+		} else if (paletteClicks == 15) {
+			color = "Lightblue";
+			ctx.strokeStyle = "lightblue";
+			ctx.fillStyle = "lightblue";
+		} else if (paletteClicks == 16) {
+			color = "Skyblue";
+			ctx.strokeStyle = "skyblue";
+			ctx.fillStyle = "skyblue";
+		} else if (paletteClicks == 17) {
+			color = "Dark Blue"
+			ctx.strokeStyle = "darkblue";
+			ctx.fillStyle = "darkblue";
+		} else if (paletteClicks == 18) {
+			color = "Blue";
+			ctx.strokeStyle = "blue";
+			ctx.fillStyle = "blue";
+		} else if (paletteClicks == 19) {
+			color = "Light Green";
+			ctx.strokeStyle = "lightgreen";
+			ctx.fillStyle = "lightgreen";
+		} else if (paletteClicks == 20) {
+			color = "Green";
+			ctx.strokeStyle = "green";
+			ctx.fillStyle = "green";
+		} else if (paletteClicks == 21) {
+			color = "Forest Green";
+			ctx.strokeStyle = "forestgreen";
+			ctx.fillStyle = "forestgreen";
+		} else if (paletteClicks == 22) {
+			color = "Darkgreen";
+			ctx.strokeStyle = "darkgreen";
+			ctx.fillStyle = "darkgreen";
+		};
+  };
+
+	$("#palette").click(function (event) {
+		cycleColors();
+	});
+	
+	
+	// Place and setup Controls
+  placeImage("controlSign", "1ulX2_JU5rKUZ9KvW0eiUT_2gI4kk9ktR", "controlSign", 500, 200, 1440, 150);
+
+  placeOImage("moveLeft", "1kceVN7GvxlXeQ5tgj88DGuVATVfb8t71", "moveLeft", 50, 1465, 299);
+  placeOImage("moveRight", "15lJARugJE99hDmek4lgoRVQvDknNzjJI", "moveRight", 50, 1565, 299);
+  placeOImage("moveUp", "1v0420DkFNDlASnPREot6GXlGajestWoh", "moveUp", 50, 1515, 250);
+  placeOImage("moveDown", "1MB4IBYIA2YDuXv3mYH2jKk9EBlMVT-X-", "moveDown", 50, 1515, 345);
+  placeOImage("enterLocationI", "1rcQ8FGotH96Imeg813vVHEfayYwImp9J", "enterLocationI", 50, 1515, 299);
+  
+  var enteringLocation2 = function() {
+	var yCE = prompt("Using ONLY digits, please enter the new Y coordinates for your paintbrush.  Range: 0-700.");
+	if (!isNaN(yCE) && Number(yCE) <= 700 && Number(yCE) >= 0) {
+		drawingYC = Number(yCE);
+		ball.y = Number(yCE);
+	} else {
+		enteringLocation2();
+	};
+  };
+  var enteringLocation = function() {
+	var xCE = prompt("Using ONLY digits, please enter the new X coordinates for your paintbrush.  Range: 0-800.");
+	if (!isNaN(xCE) && Number(xCE) <= 800 && Number(xCE) >= 0) {
+		drawingXC = Number(xCE);
+		ball.x = Number(xCE);
+		enteringLocation2();
+	} else {
+		enteringLocation();
+	};
+  };
+  $("#enterLocationI").click(function (event) {
+	enteringLocation();
+  });
+
+
+  placeOImage("minus", "189PivQOFRutWlgr6_Y6Azp942W1jcghM", "minus", 50, 1455, 470);
+  $("#minus").click(function (event) {
+    size = size - 1;
+  });
+
+  placeOImage("manualSize", "1OQKhjDTwAL-eufTq6iPTG7-9vC0S_wqu", "manualSize", 50, 1520, 470);
+  var manualSizePrompt = function () {
+    ssize = prompt("Using ONLY digits, please enter the new size for your paintbrush.");
+    testingV = Number(ssize);
+    if (ssize != "") {
+      if (!isNaN(testingV)) {
+        size = Number(ssize);
+      } else {
+        manualSizePrompt();
+      };
+    };
+  };
+  $("#manualSize").click(function (event) {
+    manualSizePrompt();
+  });
+
+  placeOImage("plus", "1Whmm06Ed_CWpRZjcD-BEC0BggxbmLEu4", "plus", 50, 1582, 470);
+  $("#plus").click(function (event) {
+    size = size + 1;
+  });
+
+
+  placeOImage("penUp", "1GZbS6MSiPzmnug2EzcpQKh-ABrYz_fc3", "penUp", 50, 1480, 610);
+  $("#penUp").click(function (event) {
+    penStatus = "Up";
+  });
+
+  placeOImage("penDown", "1vybn3Y5AcOak4o5lJ8fFsU_zGXNUIQKp", "penDown", 50, 1557, 610);
+  $("#penDown").click(function (event) {
+    penStatus = "Down";
+  });
+
+  placeOImage("mouseSign", "1Wew9ObJFVN1mMWGKzRkQMzopWEMTaRN9", "mouseSign", 43, 1443, 670);
+
+  placeOImage("thumbsUp", "1SeSXDeznqWC5GJqWvwF95CaH-P5a4yrE", "thumbsUp", 50, 1480, 725);
+  $("#thumbsUp").click(function (event) {
+    thumbsUp.src = "https://lh3.googleusercontent.com/d/1YjkSp9sP2vG_oiHhiISohmGg0WzmFMmw";
+    thumbsDown.src = "https://lh3.googleusercontent.com/d/1LJm3ibCHxnmVX27_PsZOO9ADuRQBKBTP";
+    mouseOption = true;
+	alert("You have activated the Draw with Mouse when Clicking feature.  This temporarily disables drawing with the arrow keys.  To stop drawing with the mouse and restart drawing with the arrow keys, simply select the 'Thumbs Down' botton.");
+  });
+
+  placeOImage("thumbsDown", "13IOEMlbncV2el0Rir17a0ngOGPxPSpwi", "thumbsDown", 50, 1557, 725);
+  $("#thumbsDown").click(function (event) {
+    thumbsUp.src = "https://lh3.googleusercontent.com/d/1SeSXDeznqWC5GJqWvwF95CaH-P5a4yrE";
+    thumbsDown.src = "https://lh3.googleusercontent.com/d/13IOEMlbncV2el0Rir17a0ngOGPxPSpwi";
+    mouseOption = false;
+  });
+  
+  var drawingXC = 400;
+  var drawingYC = 350;
+  var dragging = false;
+
+  $("#canvas").mousedown(function(event) {
+    if (mouseOption == true) {
+		dragging = true;
+		drawingXC = event.clientX - 275
+		drawingYC = event.clientY - 150
+		console.log(event.clientX + ", " + event.clientY);
+	};
+  });
+  $("#canvas").mousemove(function(event) {
+    if (mouseOption == true) {
+		if (dragging == true) {
+			drawingXC = event.clientX - 275
+			drawingYC = event.clientY - 150
+			console.log(event.clientX + ", " + event.clientY);
+		};
+	};
+  });
+  $("#canvas").mouseup(function(event) {
+    if (mouseOption == true) {
+		if (dragging == true) {
+			drawingXC = event.clientX - 275
+			drawingYC = event.clientY - 150
+			console.log(event.clientX + ", " + event.clientY);
+			dragging = false;
+		};
+	};
+  });
+  
+  //placeOImage("locationDisplayI", "13OWMaUwQkk7KIo8nTwsjngPjvaBmx-Am", "locationDisplayI", 18, 666, 491);
+
+
+  //Google Verification
+  
+
+  
+
+	//Setting up the drawing components of the application
+	
+	
+	//Creating the circle functions
+	var circle = function (x, y, radius, fillCircle) {
+		ctxl.beginPath();
+		ctxl.arc(x, y, radius, 0, Math.PI * 2, false);
+		if (fillCircle) {
+			ctxl.fill();
+		} else {
+			ctxl.stroke();
+		}
+	};
+	
+	var circler = function (x, y, radius, fillCircle) {
+		ctx.beginPath();
+		ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+		if (fillCircle) {
+			ctx.fill();
+		} else {
+			ctx.stroke();
+		}
+	};
+	
+	//Translating Keycodes into names for use in user input (setDirection)
+	var keyActions = {
+		8: "backspace",
+		9: "tab",
+		13: "enter",
+		16: "shift",
+		17: "control",
+		18: "alt",
+		20: "caps lock",
+		27: "escape",
+		32: "stop",
+		37: "left",
+		38: "up",
+		39: "right",
+		40: "down",
+		45: "insert",
+		46: "delete",
+		49: "1",
+		50: "2",
+    51: "3",
+    67: "c",
+    68: "d",
+		74: "j",
+		76: "l",
+		77: "m",
+    82: "r",
+    83: "s",
+    85: "u",
+    187: "+",
+    189: "-"
+	};
+	
+	
+	//Creating the *LoactionDisplay* prototype
+	var LocationDisplay = function () {
+		this.x = width / 2;
+		this.y = height / 2;
+		this.xSpeed = 0;
+		this.ySpeed = 0;
+	};
+	
+	//Creating the move function for the *LocationDisplay* prototype
+	LocationDisplay.prototype.move = function () {
+		this.x += this.xSpeed;
+		this.y += this.ySpeed;
+		
+		if (this.x < 0) {
+			this.x = width;
+		} else if (this.x > width) {
+			this.x = 0;
+		}
+		if (this.y < 0) {
+			this.y = height;
+		} else if (this.y > height) {
+			this.y = 0;
+		}
+	};
+	
+	//Seting up the user inputs for direction, changing color, and changing size
+	LocationDisplay.prototype.setDirection = function (direction) {
+		if (direction === "up") {
+			this.xSpeed = 0;
+			this.ySpeed = -3;
+		} else if (direction === "down") {
+			this.xSpeed = 0;
+			this.ySpeed = 3;
+		} else if (direction === "left") {
+			this.xSpeed = -3;
+			this.ySpeed = 0;
+		} else if (direction === "right") {
+			this.xSpeed = 3;
+			this.ySpeed = 0;
+		} else if (direction === "stop") {
+			this.xSpeed = 0;
+			this.ySpeed = 0;
+		};
+		
+	};
+	locationSize = size + 4;
+	//Creating the draw function for the *LocationDisplay* prototype
+	LocationDisplay.prototype.draw = function (){
+		locationSize = size + 4;
+    circle(this.x, this.y, locationSize, false);
+	};
+	
+	//Creating the *locationDisplay*
+	var locationDisplay = new LocationDisplay();		
+	
+	//This will log the keys pressed if in keyActions and in setDirection, thereby telling setDirection that a specific action should follow
+	$("body").keydown(function (event) {
+		var direction = keyActions[event.keyCode];
+		locationDisplay.setDirection(direction);
+	});
+	
+	
+	//Creating a *locationDisplay*
+	new(function () {
+		locationDisplay.xSpeed = 0;
+		locationDisplay.ySpeed = 0;
+		
+	});
+	
+	
+	
+	//Creating the *Ball* prototype
+	var Ball = function () {
+		this.x = width / 2;
+		this.y = height / 2;
+		this.xSpeed = 0;
+		this.ySpeed = 0;
+	};
+	
+	//Creating the move function for the *Ball* prototype
+	Ball.prototype.move = function () {
+		this.x += this.xSpeed;
+		this.y += this.ySpeed;
+		
+		if (this.x < 0) {
+			this.x = width;
+		} else if (this.x > width) {
+			this.x = 0;
+		}
+		if (this.y < 0) {
+			this.y = height;
+		} else if (this.y > height) {
+			this.y = 0;
+		}
+	};
+	
+	//Seting up the user inputs for direction, changing color, and changing size
+	Ball.prototype.setDirection = function (direction) {
+		if (direction === "up") {
+			this.xSpeed = 0;
+			this.ySpeed = -3;
+		} else if (direction === "down") {
+			this.xSpeed = 0;
+			this.ySpeed = 3;
+		} else if (direction === "left") {
+			this.xSpeed = -3;
+			this.ySpeed = 0;
+		} else if (direction === "right") {
+			this.xSpeed = 3;
+			this.ySpeed = 0;
+		} else if (direction === "stop") {
+			this.xSpeed = 0;
+			this.ySpeed = 0;
+		} else if (direction === "j") {
+			color = prompt("In ONE word, please enter the new color you'd like to draw with.")
+			ctx.strokeStyle = color;
+			ctx.fillStyle = color;
+		} else if (direction === "-") {
+			size = size - 1
+		} else if (direction === "+") {
+			size = size + 1
+		} else if (direction === "u") {
+      penStatus = "Up";
+    } else if (direction === "d") {
+      penStatus = "Down";
+    } else if (direction === "s") {
+      manualSizePrompt();
+    } else if (direction === "c") {
+      cycleColors();
+    } else if (direction === "r") {
+      resetF();
+    } else if (direction === "1") {
+      size = 5;
+    } else if (direction === "2") {
+      size = 11;
+    } else if (direction === "3") {
+      size = 17;
+    } else if (direction === "l") {
+		enteringLocation();
+	} else if (direction === "m") {
+		if (mouseOption == false) {
+			thumbsUp.src = "https://lh3.googleusercontent.com/d/1YjkSp9sP2vG_oiHhiISohmGg0WzmFMmw";
+			thumbsDown.src = "https://lh3.googleusercontent.com/d/1LJm3ibCHxnmVX27_PsZOO9ADuRQBKBTP";
+			mouseOption = true;
+			alert("You have activated the Draw with Mouse when Clicking feature.  This temporarily disables drawing with the arrow keys.  To stop drawing with the mouse and restart drawing with the arrow keys, simply select the 'Thumbs Down' botton.");
+		} else {
+			thumbsUp.src = "https://lh3.googleusercontent.com/d/1SeSXDeznqWC5GJqWvwF95CaH-P5a4yrE";
+			thumbsDown.src = "https://lh3.googleusercontent.com/d/13IOEMlbncV2el0Rir17a0ngOGPxPSpwi";
+			mouseOption = false;
+		};
+	};
+};
+	
+	//Creating the draw function for the *Ball* prototype
+	Ball.prototype.draw = function (){
+		circler(this.x, this.y, size, true);
+	};
+	
+	//Creating the *ball*
+	var ball = new Ball();
+	
+	//This will log the keys pressed if in keyActions and in setDirection, thereby telling setDirection that a specific action should follow
+	$("body").keydown(function (event) {
+		var direction = keyActions[event.keyCode];
+		ball.setDirection(direction);
+	});
+
+  function penStatusAction() {
+    var doom = "5";
+  };
+	
+	//Animation function
+	setInterval(function () {
+		if (mouseOption == false) {
+      drawingXC = ball.x;
+      drawingYC = ball.y;
+    };  
+    if (mouseOption == true) {
+			ball.x = drawingXC;
+			ball.y = drawingYC;
+		};
+		//locationDisplayI.height = size + 13;
+		//locationDX = ball.x + 275 - (locationDisplayI.height / 2);
+		//locationDY = ball.y + 150 - (locationDisplayI.height / 2);
+		//locationDisplayI.style.left = locationDX + "px";
+		//locationDisplayI.style.top = locationDY + "px";
+		locationDisplay.x = ball.x;
+		locationDisplay.y = ball.y;
+		colorIndicator = ("Color: " + color);
+    sizeIndicator = ("Size: " + size);
+	  indicatorsText = (colorIndicator + "  " + sizeIndicator);
+		indicateInfo.value = indicatorsText + "       Location: X - " + ball.x + ",  Y - " + ball.y + "       Pen Status: " + penStatus;
+		if (penStatus == "Down") {
+      ball.draw();
+    };
+    if (color == "Aqua") {
+			locationColor = "Green";
+			ctxl.strokeStyle = "green";
+		};
+    improveColor();
+		ball.move();
+		ball.xSpeed = 0;
+		ball.ySpeed = 0;
+		ctx.strokeRect(0, 0, width, height);
+		
+	});
+	
+	//Animation function for LOCATION
+	setInterval(function () {
+		ctxl.clearRect(0, 0, width, height);
+		if (color == "Aqua") {
+			locationColor = "Green";
+			ctxl.strokeStyle = "green";
+		};
+		locationSize = size + 4;
+		locationDisplay.draw();
+		locationDisplay.move();
+		locationDisplay.xSpeed = 0;
+		locationDisplay.ySpeed = 0;
+		ctxl.stroke;
+		ctxl.strokeRect(0, 0, width, height);
+		if (ctx.strokeStyle !== "aqua") {
+			locationColor = "Aqua";
+			ctxl.strokeStyle = "aqua";
+		};
+		if (ctx.strokeStyle !== "Aqua") {
+			locationColor = "Aqua";
+			ctxl.strokeStyle = "aqua";
+		};
+    $("#moveLeft").click(function (event) {
+      direction = "left";
+      ball.setDirection(direction);
+      locationDisplay.setDirection(direction);
+    });
+    $("#moveRight").click(function (event) {
+      direction = "right";
+      ball.setDirection(direction);
+      locationDisplay.setDirection(direction);
+    });
+    $("#moveUp").click(function (event) {
+      direction = "up";
+      ball.setDirection(direction);
+      locationDisplay.setDirection(direction);
+    });
+    $("#moveDown").click(function (event) {
+      direction = "down";
+      ball.setDirection(direction);
+      locationDisplay.setDirection(direction);
+    });
+	});
+	
+	//Creating a *ball*
+	new(function () {
+		ball.xSpeed = 0;
+		ball.ySpeed = 0;
+		
+	});
+
+
+	
+	//Copyright © & ™ & ℠ 2025 by Jeremiah Joseph Colella Drake.  By using this application, you are certifying that you have visited "sites.google.com/view/canvasfun/copyright-notice" and read the Copyright Notice.
+	//All rights reserved (except the rights of icons used from Google Fonts under the Apache License Version 2.0).  Self published by Jeremiah Joseph Colella Drake.  No portion of this website, its text, its code, its design, its images, its logos, or its icons (excepting those that have been used from Google Fonts under the Apache License Version 2.0), may be reproduced, scanned, uploaded, distributed, duplicated, stored in a retrieval system, or transmitted in any form by any means–electronic, mechanical, photocopy, recording, scanning, broadcasting, foot scratching, or other–except for brief quotations in critical review or articles, without the prior express written permission of the publisher and the copyright holder.  The icons used from Google Fonts under the Apache License Version 2.0 can be found at "sites.google.com/view/canvasfun/google-fonts-icons".
+  //By using any version or edition of the Canvas Fun℠ application and/or website (sites.google.com/view/canvasfun), you are agreeing to the use of cookies, Google Analytics, and similar technologies.  Our usage of these technologies includes but is not limited to the collection and storage of some of your personal information.  The information collected includes but is not limited to your language, country, city, device model, browser, and usage of the Canvas Fun℠ application and website.
+  //By using this application, you are agreeing to our Canvas Fun℠ Cookies & Privacy Policy at "sites.google.com/view/canvasfun/privacy-policy/".
+
+	
+	</script>
+	
+	
+</body>
+</html>
