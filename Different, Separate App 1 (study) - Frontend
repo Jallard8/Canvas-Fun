@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Study App</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+
+  <!-- Google Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+
+  <!-- Custom fonts for RTE -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Jacquard+24&display=swap" rel="stylesheet">
+
+  <style>
+    :root { --cardRadius: 14px; }
+    body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; color: #1e293b; }
+
+    .app-container { display:flex; flex-direction:column; height:100vh; max-height:98vh; width:100%; max-width:1200px; margin:auto; }
+
+    .view { display:none; }
+    .view.active { display:flex; flex-direction:column; height:100%; }
+
+    .mode-btn { background-color:#f1f5f9; color:#475569; transition:all .2s; }
+    .mode-btn.active, .mode-btn:hover { background-color:#e2e8f0; color:#0f172a; transform:translateY(-2px); box-shadow:0 4px 6px rgba(0,0,0,.05); }
+
+    .content-area { background:#fff; border-radius:1.5rem; box-shadow:0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05); flex-grow:1; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .mode-container { display:none; }
+    .mode-container.active { display:flex; flex-direction:column; flex-grow:1; }
+
+    /* Flashcards */
+    .flashcard-container { perspective:1500px; flex-grow:1; display:flex; align-items:center; justify-content:center; padding:1rem 2rem; }
+    .flashcard { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .7s cubic-bezier(.4,0,.2,1); }
+    .flashcard.is-flipped { transform:rotateY(180deg); }
+    .card-face { position:absolute; width:100%; height:100%; backface-visibility:hidden; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:2rem; border-radius:var(--cardRadius); background:#fff; border:1px solid #e2e8f0; text-align:center; font-size:1.75rem; cursor:pointer; }
+    .card-back { transform:rotateY(180deg); }
+    .card-face-content { font-size: 2.25rem; color: #1e293b; }
+    .flashcard-actions { position:absolute; top:1rem; right:1rem; display:flex; gap:0.5rem; }
+    .flashcard-hint-btn { position:absolute; top:1rem; left:1rem; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+    #flashcard-star-btn i, #flashcard-star-btn-back i { font-size: 0.875rem; }
+
+    .bottom-controls { border-top:1px solid #e2e8f0; }
+    .control-btn { color:#64748b; transition:color .2s; }
+    .control-btn:hover { color:#1e293b; }
+    .control-btn.active { color:#3b82f6; }
+
+    /* Overlays */
+    .modal-overlay { position:fixed; inset:0; background-color:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:50; }
+    .modal-overlay.hidden { display:none; }
+
+    /* Overview rows */
+    .overview-term-row { display:flex; align-items:center; gap:.5rem; padding:.5rem .75rem; }
+    .overview-term-term { font-weight:600; color:#0f172a; display:flex; align-items:center; }
+    .term-def-divider { width:2px; height:16px; background:#000; display:inline-block; margin:0 .5rem; border-radius:1px; }
+    .overview-term-def { color:#334155; flex:1; min-width:0; }
+    .overview-term-actions { display:flex; align-items:center; gap:.35rem; }
+
+    .icon-btn { display:inline-flex; align-items:center; justify-content:center; border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:10px; padding:.35rem .5rem; }
+    .icon-btn:hover { background:#f8fafc; color:#0f172a; }
+    .icon-btn-compact { padding:0; width:32px; height:32px; min-width:32px; min-height:32px; }
+
+    /* Stars in overview */
+    .overview-term-row .fa-star { color:#d1d5db; cursor:pointer; }
+    .overview-term-row .fa-star.starred { color:#f59e0b; }
+
+    /* Stars in flashcards */
+    #flashcard-star-btn .fa-star, #flashcard-star-btn-back .fa-star { color:#d1d5db; }
+    #flashcard-star-btn .fa-star.starred, #flashcard-star-btn-back .fa-star.starred { color:#f59e0b; }
+
+    /* Switch */
+    .switch { position:relative; display:inline-block; width:50px; height:28px; }
+    .switch input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; cursor:pointer; inset:0; background:#ccc; transition:.4s; border-radius:28px; }
+    .slider:before { position:absolute; content:""; height:20px; width:20px; left:4px; bottom:4px; background:#fff; transition:.4s; border-radius:50%; }
+    input:checked + .slider { background:#3b82f6; }
+    input:checked + .slider:before { transform:translateX(22px); }
+
+    /* Learn/Test states */
+    .learn-option { border:2px solid #e2e8f0; transition:all .2s; }
+    .learn-option.correct { border-color:#22c55e; background:#f0fdf4; }
+    .learn-option.incorrect { border-color:#f97316; background:#fff7ed; }
+    .learn-option.revealed { border-style:dashed; border-color:#22c55e; }
+    .learn-option.disabled { opacity:.6; pointer-events:none; }
+    .learn-option.correct.disabled, .learn-option.incorrect.disabled { opacity:1; }
+
+    .test-option { border:2px solid #e2e8f0; transition:all .2s; cursor:pointer; }
+    .test-option:hover { border-color:#818cf8; background:#eef2ff; }
+    .test-option.selected { border-color:#4f46e5; background:#e0e7ff; }
+    .test-option.correct { border-color:#22c55e !important; background:#f0fdf4 !important; }
+    .test-option.incorrect { border-color:#ef4444 !important; background:#fef2f2 !important; }
+
+    .match-option { cursor:pointer; }
+    .match-option.selected { outline:2px solid #4f46e5; outline-offset:2px; }
+    .match-slot { border:2px dashed #d1d5db; min-height:48px; display:flex; align-items:center; justify-content:center; background:#fafafa; border-radius:12px; }
+    .match-slot.filled { border-style:solid; border-color:#818cf8; background:#eef2ff; }
+
+    /* Toasts */
+    #toast-stack { position:fixed; left:16px; bottom:16px; display:flex; flex-direction:column; gap:10px; z-index:60; }
+    .toast { min-width:260px; max-width:360px; background:#0f172a; color:white; border-radius:12px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; box-shadow:0 10px 15px -3px rgba(0,0,0,.2); }
+    .toast .spinner { width:18px; height:18px; border:3px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite; margin-top:2px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Set/Folder tiles */
+    .set-card, .folder-card { position:relative; border:2px solid #3b82f6; border-radius:var(--cardRadius); padding:.75rem .9rem; display:flex; flex-direction:row; align-items:center; gap:.8rem; height:auto; background:#fff; }
+    .set-card .title, .folder-card .title { font-weight:700; color:#0f172a; line-height:1.2; }
+    .set-card .stats { display:flex; flex-direction:column; gap:2px; font-size:.85rem; line-height:1.1; }
+    .set-card .actions, .folder-card .actions { position:absolute; top:6px; right:6px; display:flex; gap:6px; }
+    .tile-icon { font-size:22px; color:#3b82f6; }
+
+    .material-icons-outlined { font-size:20px; line-height:20px; }
+
+    /* Refresh spin */
+    .spin { animation:spin 1s linear infinite; }
+
+    /* Fallback for Tailwind Typography `.prose` */
+    .prose { line-height:1.6; color:#334155; }
+    .prose h1,.prose h2,.prose h3 { color:#0f172a; font-weight:700; margin-top:1rem; margin-bottom:.5rem; }
+    .prose p { margin:.5rem 0; }
+    .prose ul,.prose ol { margin:.5rem 0; padding-left:1.25rem; }
+    .prose a { text-decoration:underline; }
+    .prose code { background:#f1f5f9; padding:.1rem .3rem; border-radius:.25rem; }
+
+    /* Keep inserted images sensible inside the guide */
+    #study-guide-content-overview img { max-width: 100%; height: auto; }
+
+    /* RTE */
+    .rte-btn { background-color: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+    .rte-btn:hover { background-color: #e2e8f0; }
+
+    /* Study guide editor focus state */
+    #study-guide-content-overview.is-editing {
+      max-height: 50vh;
+      overflow-y: auto;
+      outline: 2px solid #818cf8; /* indigo-400 */
+      outline-offset: -2px;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+  </style>
+</head>
+
+<body class="p-4 sm:p-6 bg-slate-100">
+  <!-- Loader -->
+  <div id="loader" class="modal-overlay hidden">
+    <div class="text-white text-center">
+      <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+      <p id="loader-text" class="text-2xl font-bold">Loading...</p>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div id="info-modal" class="modal-overlay hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+      <div class="flex items-start justify-between mb-4">
+        <h2 id="info-modal-title" class="text-xl font-bold">Info</h2>
+        <button id="info-modal-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <div id="info-modal-body" class="text-slate-700"></div>
+      <div class="mt-6 flex justify-end">
+        <button id="info-modal-ok" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drive Image Options Modal -->
+  <div id="drive-image-options-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Image Size Options</h2>
+        <button id="drive-image-options-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <p class="text-sm text-slate-500 mb-3">Set a size for the images you're inserting. This will apply to all selected images.</p>
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="drive-image-width" class="text-sm text-slate-600">Width (optional)</label>
+            <input type="text" id="drive-image-width" placeholder="e.g., 300px or 50%" class="w-full p-2 border rounded-md mt-1"/>
+          </div>
+          <div>
+            <label for="drive-image-height" class="text-sm text-slate-600">Height (optional)</label>
+            <input type="text" id="drive-image-height" placeholder="e.g., 200px or auto" class="w-full p-2 border rounded-md mt-1"/>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="drive-image-options-cancel" class="px-4 py-2 bg-slate-200 rounded-md">Cancel</button>
+        <button id="drive-image-options-confirm" class="px-4 py-2 bg-blue-600 text-white rounded-md">Insert Images</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Targeted Edit Modal -->
+  <div id="targeted-edit-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Targeted Study Guide Edit</h2>
+        <button id="targeted-edit-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <p class="text-sm text-slate-600 mb-3">Enter instructions for Gemini to make specific, targeted edits to the current study guide. Your instructions will be strictly followed.</p>
+      <textarea id="targeted-edit-instructions" rows="8" class="w-full border rounded-lg p-2" placeholder="e.g., 'Combine the sections on Mitosis and Meiosis into a single section called Cell Division.' or 'Add a summary paragraph at the very end of the guide.'"></textarea>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="targeted-edit-cancel" class="px-4 py-2 bg-slate-200 rounded-lg">Cancel</button>
+        <button id="targeted-edit-submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Submit Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+      <div class="flex items-start justify-between mb-4">
+        <h2 id="confirm-modal-title" class="text-xl font-bold">Confirm</h2>
+        <button id="confirm-modal-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <div id="confirm-modal-body" class="text-slate-700"></div>
+      <div class="mt-6 flex justify-end gap-3">
+        <button id="confirm-modal-cancel" class="px-4 py-2 bg-slate-200 rounded-lg">Cancel</button>
+        <button id="confirm-modal-alt" class="px-4 py-2 bg-orange-500 text-white rounded-lg hidden">Delete &amp; Have Gemini Remove From Study Guide</button>
+        <button id="confirm-modal-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Term Modal -->
+  <div id="edit-term-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold">Edit</h2>
+            <button id="edit-term-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+        </div>
+
+        <!-- Term Editor -->
+        <div>
+            <div class="flex items-center gap-2 mb-2">
+                <button class="rte-btn" data-command="bold"><i class="fas fa-bold"></i></button>
+                <button class="rte-btn" data-command="italic"><i class="fas fa-italic"></i></button>
+                <button class="rte-btn" data-command="underline"><i class="fas fa-underline"></i></button>
+                <button class="rte-btn" data-command="foreColor" data-value="#f59e0b"><span class="w-4 h-4 rounded-full bg-yellow-500 block"></span></button>
+                <button class="rte-btn" data-command="foreColor" data-value="#ec4899"><span class="w-4 h-4 rounded-full bg-pink-500 block"></span></button>
+            </div>
+            <div id="edit-term-input" contenteditable="true" class="w-full p-2 border border-gray-300 rounded-md min-h-[60px]"></div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- Definition Editor -->
+        <div>
+            <div class="flex items-center gap-2 mb-2">
+                <button class="rte-btn" data-command="bold"><i class="fas fa-bold"></i></button>
+                <button class="rte-btn" data-command="italic"><i class="fas fa-italic"></i></button>
+                <button class="rte-btn" data-command="underline"><i class="fas fa-underline"></i></button>
+                <button class="rte-btn" data-command="foreColor" data-value="#f59e0b"><span class="w-4 h-4 rounded-full bg-yellow-500 block"></span></button>
+                <button class="rte-btn" data-command="foreColor" data-value="#ec4899"><span class="w-4 h-4 rounded-full bg-pink-500 block"></span></button>
+            </div>
+            <div id="edit-definition-input" contenteditable="true" class="w-full p-2 border border-gray-300 rounded-md min-h-[120px]"></div>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-6">
+            <button id="cancel-edit-term-btn" class="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+            <button id="confirm-edit-term-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save</button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Add Term Modal -->
+  <div id="add-term-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Add New Term</h2>
+        <button id="add-term-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <input type="text" id="new-term-input" placeholder="Term" class="w-full p-2 border border-gray-300 rounded-md mb-3"/>
+      <textarea id="new-definition-input" placeholder="Definition" class="w-full p-2 border border-gray-300 rounded-md mb-4" rows="3"></textarea>
+      <div class="flex justify-end gap-3">
+        <button id="cancel-add-term-btn" class="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+        <button id="confirm-add-term-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save Term</button>
+        <button id="confirm-add-term-gemini-btn" class="px-4 py-2 bg-cyan-600 text-white rounded-md">Save Term &amp; Have Gemini Add to Study Guide</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Set Modal -->
+  <div id="create-set-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Create New Study Set</h2>
+        <button id="create-set-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <div class="space-y-3">
+        <input type="text" id="new-set-name-input" placeholder="Enter set name..." class="w-full p-2 border border-gray-300 rounded-md"/>
+        <!-- Folder picker with + New Folder -->
+        <div>
+          <label class="block text-sm text-slate-700 mb-1">Folder (optional)</label>
+          <div class="flex gap-2">
+            <select id="set-folder-select" class="flex-1 p-2 border rounded-md"></select>
+            <button id="inline-new-folder-btn" class="icon-btn" title="New Folder"><span class="material-icons-outlined">create_new_folder</span></button>
+          </div>
+          <p id="inline-new-folder-pending" class="text-xs text-slate-500 mt-1 hidden"></p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="cancel-create-set-btn" class="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+        <button id="confirm-create-set-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline New Folder Modal (from Create Set) -->
+  <div id="inline-folder-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">New Folder</h2>
+        <button id="inline-folder-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <input type="text" id="inline-folder-name" placeholder="Folder name" class="w-full p-2 border rounded-md mb-3"/>
+      <textarea id="inline-folder-desc" placeholder="Description (optional)" rows="3" class="w-full p-2 border rounded-md"></textarea>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="inline-folder-cancel" class="px-4 py-2 bg-slate-200 rounded">Cancel</button>
+        <button id="inline-folder-next" class="px-4 py-2 bg-indigo-600 text-white rounded">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Folder Modal (dashboard button) -->
+  <div id="create-folder-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Create Folder</h2>
+        <button id="create-folder-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <input type="text" id="new-folder-name-input" placeholder="Folder name" class="w-full p-2 border rounded-md mb-3"/>
+      <textarea id="new-folder-desc-input" placeholder="Description (optional)" rows="3" class="w-full p-2 border rounded-md"></textarea>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="cancel-create-folder-btn" class="px-4 py-2 bg-slate-200 rounded">Cancel</button>
+        <button id="confirm-create-folder-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Set Modal -->
+  <div id="move-set-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Move Set</h2>
+        <button id="move-set-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <div class="space-y-3">
+        <label class="block text-sm text-slate-700">Destination folder</label>
+        <div class="flex gap-2">
+          <select id="move-folder-select" class="flex-1 p-2 border rounded-md"></select>
+          <button id="move-new-folder-btn" class="icon-btn" title="New Folder"><span class="material-icons-outlined">create_new_folder</span></button>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="move-set-cancel" class="px-4 py-2 bg-slate-200 rounded">Cancel</button>
+        <button id="move-set-confirm" class="px-4 py-2 bg-indigo-600 text-white rounded">Move</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import with Gemini Modal -->
+  <div id="import-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-2xl">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Import file for term generation</h2>
+        <button id="import-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm text-slate-600 mb-1">Upload any file</label>
+          <div id="import-dropzone" class="border-2 border-dashed rounded-xl p-6 text-center text-slate-500">
+            <p>Drag &amp; drop or click to upload</p>
+            <input id="import-file-input" type="file" class="hidden"/>
+          </div>
+          <p id="import-file-name" class="text-xs text-slate-500 mt-2"></p>
+        </div>
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">Special instructions (optional)</label>
+          <textarea id="import-instructions" rows="6" class="w-full border rounded-lg p-2" placeholder="e.g., Focus on dates and definitions only. "></textarea>
+        </div>
+      </div>
+      <p id="import-size-warn" class="text-xs text-amber-600 mt-2 hidden"></p>
+      <div class="mt-5 flex justify-end gap-3">
+        <button id="import-cancel" class="px-4 py-2 bg-slate-200 rounded-lg">Cancel</button>
+        <button id="import-generate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Generate Terms</button>
+        <button id="import-generate-update" class="px-4 py-2 bg-indigo-700 text-white rounded-lg">Generate Terms &amp; Update Study Guide</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Insert Image Modal -->
+  <div id="insert-image-modal" class="modal-overlay hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-xl font-bold">Insert Image</h2>
+        <button id="insert-image-close" class="icon-btn" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+      </div>
+      <div class="space-y-3">
+        <input type="url" id="insert-image-url" placeholder="https://example.com/image.jpg" class="w-full p-2 border rounded-md"/>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="insert-image-width" class="text-sm text-slate-600">Width (optional)</label>
+            <input type="text" id="insert-image-width" placeholder="e.g., 300px or 50%" class="w-full p-2 border rounded-md mt-1"/>
+          </div>
+          <div>
+            <label for="insert-image-height" class="text-sm text-slate-600">Height (optional)</label>
+            <input type="text" id="insert-image-height" placeholder="e.g., 200px or auto" class="w-full p-2 border rounded-md mt-1"/>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 pt-1">
+          <strong>Note:</strong> Your image is added to the editor but won't be saved permanently until you click the main <strong>"Save Guide"</strong> button.
+        </p>
+      </div>
+      <div class="flex justify-end gap-3 mt-5">
+        <button id="insert-image-cancel" class="px-4 py-2 bg-slate-200 rounded-md">Cancel</button>
+        <button id="insert-image-confirm" class="px-4 py-2 bg-blue-600 text-white rounded-md">Insert</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Stack -->
+  <div id="toast-stack"></div>
+  <div class="app-container">
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="view active">
+      <header class="flex items-center justify-between py-2">
+        <div class="flex items-center gap-2">
+          <h1 id="dashboard-title" class="text-2xl font-bold text-slate-800">Your Study Sets</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Refresh (Autorenew) -->
+          <button id="refresh-btn" class="icon-btn" title="Refresh">
+            <span id="refresh-icon" class="material-icons-outlined">autorenew</span>
+          </button>
+          <!-- Create Set (Open in New) -->
+          <button id="create-set-btn" class="icon-btn">
+            <span class="material-icons-outlined">open_in_new</span>
+            <span class="ml-1 hidden sm:inline">Create Set</span>
+          </button>
+          <!-- Create Folder (hidden when inside a folder) -->
+          <button id="create-folder-btn" class="icon-btn">
+            <span class="material-icons-outlined">create_new_folder</span>
+            <span class="ml-1 hidden sm:inline">Create Folder</span>
+          </button>
+        </div>
+      </header>
+
+      <div id="breadcrumb" class="text-sm text-slate-600 mb-2 hidden">
+        <button id="breadcrumb-root" class="underline">All folders &amp; sets</button>
+        <span class="mx-1">›</span>
+        <span id="breadcrumb-folder-name"></span>
+      </div>
+
+      <div id="sets-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-1 pb-6 flex-grow overflow-y-auto auto-rows-min"></div>
+    </div>
+
+    <!-- Study View -->
+    <div id="study-view" class="view">
+      <header id="app-header" class="flex items-center justify-between py-3">
+        <div class="flex items-center gap-2">
+          <button id="home-btn" class="icon-btn" title="Home"><span class="material-icons-outlined">home</span></button>
+          <h1 id="set-title" class="text-xl sm:text-2xl font-bold text-slate-800"></h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="import-btn" class="icon-btn" title="Import (Gemini)"><span class="material-icons-outlined">upload_file</span></button>
+          <button id="add-term-btn" class="icon-btn" title="Add term"><span class="material-icons-outlined">add</span></button>
+          <button id="bulk-delete-btn" class="icon-btn" title="Bulk delete terms"><span class="material-icons-outlined">delete_sweep</span></button>
+        </div>
+      </header>
+
+      <div id="mode-selector" class="grid grid-cols-3 md:grid-cols-6 gap-3 my-4">
+        <button data-mode="overview"   class="mode-btn p-2 rounded-lg flex items-center justify-center text-base sm:text-lg font-semibold"><i class="fa-solid fa-list-check mr-2"></i>Overview</button>
+        <button data-mode="flashcards" class="mode-btn p-2 rounded-lg flex items-center justify-center text-base sm:text-lg font-semibold"><i class="fa-solid fa-clone mr-2"></i>Flashcards</button>
+        <button data-mode="learn"      class="mode-btn p-2 rounded-lg flex items-center justify-center text-base sm:text-lg font-semibold"><i class="fa-solid fa-brain mr-2"></i>Learn</button>
+        <button data-mode="test"       class="mode-btn p-2 rounded-lg flex items-center justify-center text-base sm:text-lg font-semibold"><i class="fa-solid fa-file-alt mr-2"></i>Test</button>
+        <button data-mode="blast"      class="mode-btn p-2 rounded-lg flex items-center justify-center text-base sm:text-lg font-semibold"><i class="fa-solid fa-rocket mr-2"></i>Blast</button>
+        <button data-mode="blocks"     class="mode-btn p-2 rounded-lg flex items-center justify-center text-base sm:text-lg font-semibold"><i class="fa-solid fa-cubes mr-2"></i>Blocks</button>
+      </div>
+
+      <main class="content-area">
+        <div id="overview-mode"   class="mode-container p-6 overflow-y-auto"></div>
+
+        <div id="flashcards-mode" class="mode-container p-4 sm:p-8">
+          <div class="flashcard-container">
+            <div class="flashcard" id="flashcard">
+              <div class="card-face card-front">
+                  <button id="flashcard-hint-btn" class="icon-btn flashcard-hint-btn" title="Get a hint">
+                      <span class="material-icons-outlined">lightbulb</span>
+                      <span class="ml-2">Get a hint</span>
+                  </button>
+                  <div class="flashcard-actions">
+                      <button id="flashcard-edit-btn" class="icon-btn" title="Edit term"><span class="material-icons-outlined">edit</span></button>
+                      <button id="flashcard-speak-btn" class="icon-btn" title="Speak term"><span class="material-icons-outlined">volume_up</span></button>
+                      <button id="flashcard-star-btn" class="icon-btn" title="Star term"><i class="fas fa-star"></i></button>
+                  </div>
+                  <div class="card-face-content"></div>
+              </div>
+              <div class="card-face card-back">
+                  <div class="flashcard-actions">
+                    <button id="flashcard-edit-btn-back" class="icon-btn" title="Edit term"><span class="material-icons-outlined">edit</span></button>
+                    <button id="flashcard-speak-btn-back" class="icon-btn" title="Speak definition"><span class="material-icons-outlined">volume_up</span></button>
+                    <button id="flashcard-star-btn-back" class="icon-btn" title="Star term"><i class="fas fa-star"></i></button>
+                  </div>
+                  <div class="card-face-content"></div>
+              </div>
+            </div>
+          </div>
+          <div id="progress-buttons" class="hidden flex items-center justify-center gap-6 mt-4">
+            <button id="unknown-btn" class="test-option py-2 px-4 rounded-lg flex items-center gap-2 border-2 border-orange-500 text-orange-600">
+              <span class="material-icons-outlined">close</span><span>Mark Unknown</span>
+            </button>
+            <button id="known-btn" class="test-option py-2 px-4 rounded-lg flex items-center gap-2 border-2 border-green-600 text-green-700">
+              <span class="material-icons-outlined">check</span><span>Mark Known</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="learn-mode" class="mode-container flex-col p-6 relative"></div>
+
+        <div id="test-mode" class="mode-container items-center justify-center text-slate-500 font-semibold flex-col">
+          <div id="test-content-wrapper" class="w-full h-full p-6 overflow-y-auto"></div>
+        </div>
+
+        <div id="blast-mode"  class="mode-container items-center justify-center text-2xl text-slate-500 font-semibold">Blast Mode - Coming Soon!</div>
+        <div id="blocks-mode" class="mode-container items-center justify-center text-2xl text-slate-500 font-semibold">Blocks Mode - Coming Soon!</div>
+      </main>
+
+      <footer class="bottom-controls bg-white p-3 grid grid-cols-3 items-center rounded-b-lg">
+        <div class="flex items-center gap-3 justify-start">
+          <span class="text-sm font-medium text-slate-600">Track progress</span>
+          <label class="switch"><input type="checkbox" id="track-progress-toggle"/><span class="slider"></span></label>
+        </div>
+        <div class="flex items-center gap-4 justify-center">
+          <button id="prev-btn" class="control-btn text-xl" title="Previous"><i class="fas fa-arrow-left"></i></button>
+          <span id="card-counter" class="font-bold text-base sm:text-lg text-slate-700"></span>
+          <button id="next-btn" class="control-btn text-xl" title="Next"><i class="fas fa-arrow-right"></i></button>
+        </div>
+        <div class="flex items-center gap-4 justify-end">
+          <button id="shuffle-btn" class="control-btn text-xl" title="Shuffle"><i class="fas fa-random"></i></button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+  // =====================
+  // Logging helper
+  // =====================
+  function log(...args){ try{ console.log('[StudyApp]', new Date().toISOString(), ...args); }catch(_){} }
+
+  // =====================
+  // State
+  // =====================
+  let allSets = [];        // {id,name,folderId}
+  let allFolders = [];     // {id,name,description}
+  let currentFolderId = null; // null = root
+  let currentSetId = null;
+  let currentSetName = '';
+  let allCardsMaster = []; // terms with {uuid,rowId,term,definition,status,starred,correctInARow}
+  let activeCardDeck = [];
+  let currentCardIndex = 0;
+  let testSession = null;
+  let dashboardPollInterval = null;
+  let eventsBound = false;
+
+  // bulk delete selection
+  let bulkMode = false;
+  let bulkSelectedUUIDs = new Set();
+
+  // star batching (by UUID or rowId)
+  const pendingStarUpdates = new Map(); // key: "uuid:<uuid>" or "row:<rowId>", val: boolean
+  let starFlushTimer = null;
+  const STAR_FLUSH_MS = 125;
+
+  // pending inline folder (from Create Set flow, not yet created in backend)
+  let pendingInlineFolder = null; // {name, description}
+
+  // saved selection for inserting image
+  let savedGuideRange = null;
+
+  // --- Google Picker API ---
+  const DEVELOPER_KEY = '<?= DEVELOPER_KEY ?>';
+  const APP_ID = '<?= APP_ID ?>';
+  let pickerApiLoaded = false;
+  let pendingDriveImageUrls = [];
+
+  // =====================
+  // DOM refs
+  // =====================
+  let loader, loaderText, dashboardView, studyView, setsGrid,
+      createSetModal, newSetNameInput, setFolderSelect,
+      confirmCreateSetBtn, cancelCreateSetBtn, createSetCloseBtn, createSetBtn,
+      inlineNewFolderBtn, inlineFolderModal, inlineFolderName, inlineFolderDesc, inlineFolderNext, inlineFolderCancel, inlineFolderClose, inlineNewFolderPending,
+      createFolderModal, newFolderNameInput, newFolderDescInput, confirmCreateFolderBtn, cancelCreateFolderBtn, createFolderCloseBtn, createFolderBtn,
+      moveSetModal, moveFolderSelect, moveNewFolderBtn, moveSetClose, moveSetCancel, moveSetConfirm,
+      addTermModal, newTermInput, newDefinitionInput, confirmAddTermBtn, confirmAddTermGeminiBtn, cancelAddTermBtn, addTermCloseBtn,
+      editTermModal, editTermInput, editDefinitionInput, confirmEditTermBtn, cancelEditTermBtn, editTermCloseBtn,
+      homeBtn, addTermBtn, bulkDeleteBtn, importBtn,
+      setTitle, modeButtons, modeContainers, bottomControls, flashcard, cardFront, cardBack,
+      prevBtn, nextBtn, cardCounter, shuffleBtn, trackProgressToggle, progressButtons,
+      unknownBtn, knownBtn, learnModeContainer, overviewModeContainer,
+      infoModal, infoTitle, infoBody, infoClose, infoOk,
+      confirmModal, confirmTitle, confirmBody, confirmClose, confirmCancel, confirmConfirm, confirmAlt,
+      importModal, importClose, importDropzone, importFileInput, importFileName, importInstructions, importCancel, importGenerate, importGenerateUpdate, importSizeWarn,
+      testContentWrapper, toastStack,
+      refreshBtn, refreshIcon, dashboardTitle, breadcrumb, breadcrumbRoot, breadcrumbFolderName, createFolderHdrBtn,
+      insertImageModal, insertImageUrl, insertImageClose, insertImageCancel, insertImageConfirm,
+      driveImageBtn, // NEW
+      targetedEditModal, targetedEditClose, targetedEditCancel, targetedEditSubmit, targetedEditInstructions,
+      driveImageOptionsModal, driveImageOptionsClose, driveImageOptionsCancel, driveImageOptionsConfirm, driveImageWidth, driveImageHeight; // NEW
+
+  // =====================
+  // Utilities
+  // =====================
+  const $id = (x) => document.getElementById(x);
+  function escapeHTML(str=''){ return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function speakText(text){
+    if('speechSynthesis' in window){
+      const strippedText = new DOMParser().parseFromString(text, "text/html").documentElement.textContent;
+      const u = new SpeechSynthesisUtterance(strippedText);
+      speechSynthesis.speak(u);
+    }
+  }
+  function showLoader(text='Loading...'){ if(loaderText) loaderText.textContent = text; loader?.classList.remove('hidden'); log('Loader show:', text); }
+  function hideLoader(){ loader?.classList.add('hidden'); log('Loader hide'); }
+  function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+  function normalize(s){ return String(s||'').trim(); }
+  function sanitize(s){ return normalize(s).toLowerCase().replace(/[^a-z0-9 ]+/g,'').replace(/\s+/g,' '); }
+
+  function toast({message, kind='info', spinner=false, ttl=3500}){
+    if(!toastStack) return;
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `${spinner ? '<div class="spinner"></div>' : '<span class="material-icons-outlined">info</span>'}
+      <div class="text-sm leading-snug">${escapeHTML(message)}</div>`;
+    toastStack.appendChild(t);
+    if(ttl>0){ setTimeout(()=>{ t.remove(); }, ttl); }
+    return {
+      done(success=true,msg){
+        t.innerHTML = `<span class="material-icons-outlined">${success?'check_circle':'error'}</span>
+          <div class="text-sm leading-snug">${escapeHTML(msg || (success?'Done.':'Failed.'))}</div>`;
+        setTimeout(()=>t.remove(), 2500);
+      }
+    };
+  }
+
+  // =====================
+  // Google Picker API
+  // =====================
+  function handleClientLoad() {
+    gapi.load('client:picker', initializePicker);
+  }
+
+  function initializePicker() {
+    gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest', () => {
+      pickerApiLoaded = true;
+      log('Google Picker API initialized.');
+    });
+  }
+
+  function openDrivePicker() {
+    if (!pickerApiLoaded) {
+      showInfo('API Not Ready', '<p>The Google Drive API is still loading. Please try again in a moment.</p>');
+      return;
+    }
+    if (DEVELOPER_KEY === 'YOUR_API_KEY' || APP_ID === 'YOUR_APP_ID') {
+      showInfo('Configuration Needed', '<p>The Google Drive Picker requires configuration. Please open the <code>Index.html</code> file and replace the placeholder values for <code>DEVELOPER_KEY</code> and <code>APP_ID</code> with your own credentials.</p>');
+      return;
+    }
+
+    const token = google.script.getOAuthToken();
+    const view = new google.picker.View(google.picker.ViewId.DOCS_IMAGES_AND_VIDEOS);
+    const picker = new google.picker.PickerBuilder()
+      .setAppId(APP_ID)
+      .setOAuthToken(token)
+      .addView(view)
+      .setDeveloperKey(DEVELOPER_KEY)
+      .setCallback(pickerCallback)
+      .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+      .build();
+    picker.setVisible(true);
+  }
+
+  function pickerCallback(data) {
+    if (data.action === google.picker.Action.PICKED) {
+      const fileIds = data.docs.map(doc => doc.id);
+      if (fileIds.length === 0) return;
+
+      const t = toast({ message: `Processing ${fileIds.length} image(s) from Drive…`, spinner: true, ttl: 0 });
+
+      google.script.run
+        .withSuccessHandler(responses => {
+          pendingDriveImageUrls = [];
+          let errorCount = 0;
+          responses.forEach(res => {
+            if (res.url) {
+              pendingDriveImageUrls.push(res.url);
+            } else {
+              errorCount++;
+              console.error('Drive image processing failed for one file', res.error);
+            }
+          });
+
+          if (errorCount > 0) {
+            toast({ message: `${errorCount} image(s) could not be processed.`, kind: 'error' });
+          }
+
+          if (pendingDriveImageUrls.length > 0) {
+            t.done(true, 'Ready to insert images.');
+            driveImageOptionsModal.classList.remove('hidden');
+            driveImageWidth.focus();
+          } else {
+            t.done(false, 'Failed to process any images from Drive.');
+          }
+        })
+        .withFailureHandler(err => {
+          t.done(false, 'An error occurred while processing images.');
+          console.error('getImageUrlsFromDrive failed', err);
+        })
+        .getImageUrlsFromDrive(fileIds);
+    }
+  }
+
+  function showInfo(title, html){
+    infoTitle.textContent = title || 'Info';
+    infoBody.innerHTML = html || '';
+    infoModal.classList.remove('hidden');
+    log('Info modal:', title);
+  }
+  function hideInfo(){ infoModal.classList.add('hidden'); }
+
+  // Confirm modal
+  function showConfirm({title='Confirm', html='', confirmText='Delete', altText=null, onConfirm, onAlt}){
+    confirmTitle.textContent = title;
+    confirmBody.innerHTML = html;
+    confirmConfirm.textContent = confirmText || 'Delete';
+    confirmAlt.classList.toggle('hidden', !altText);
+    if(altText) confirmAlt.textContent = altText;
+    confirmModal.classList.remove('hidden');
+
+    const confirmClone = confirmConfirm.cloneNode(true); confirmConfirm.replaceWith(confirmClone); confirmConfirm = confirmClone;
+    const altClone = confirmAlt.cloneNode(true); confirmAlt.replaceWith(altClone); confirmAlt = altClone;
+
+    confirmConfirm.addEventListener('click', ()=>{ confirmModal.classList.add('hidden'); onConfirm && onConfirm(); });
+    if(altText){ confirmAlt.addEventListener('click', ()=>{ confirmModal.classList.add('hidden'); onAlt && onAlt(); }); }
+
+    log('Confirm shown:', { title, confirmText, altText });
+  }
+  function hideConfirm(){ confirmModal.classList.add('hidden'); }
+
+  // =====================
+  // Views
+  // =====================
+  function showView(name){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    $id(`${name}-view`)?.classList.add('active');
+    if(name==='dashboard'){ startDashboardPolling(); } else { stopDashboardPolling(); }
+    log('View switched:', name);
+  }
+
+  // =====================
+  // Dashboard rendering (Folders + Sets)
+  // =====================
+  function renderDashboard(){
+    if(!setsGrid) return;
+    const inFolder = !!currentFolderId;
+    dashboardTitle.textContent = inFolder ? 'Folder' : 'Your Study Sets';
+    breadcrumb.classList.toggle('hidden', !inFolder);
+    createFolderHdrBtn.classList.toggle('hidden', inFolder);
+
+    const folderName = allFolders.find(f=>f.id===currentFolderId)?.name || '';
+    breadcrumbFolderName.textContent = folderName;
+
+    setsGrid.innerHTML = '';
+
+    // Folders (only at root)
+    if(!inFolder){
+      if(allFolders.length){
+        allFolders.forEach(folder=>{
+          const card = document.createElement('div');
+          card.className = 'folder-card w-full hover:bg-slate-50 transition cursor-pointer';
+          card.dataset.folderId = folder.id;
+          card.innerHTML = `
+            <span class="tile-icon material-icons-outlined">folder</span>
+            <div class="flex-1">
+              <div class="title">${escapeHTML(folder.name)}</div>
+              <div class="text-slate-600 text-sm">${escapeHTML(folder.description || '')}</div>
+            </div>
+            <div class="actions">
+              <button class="icon-btn icon-btn-compact" data-action="delete-folder" data-folder-id="${folder.id}" title="Delete folder">
+                <span class="material-icons-outlined">delete</span>
+              </button>
+            </div>
+          `;
+          // click anywhere else navigates into folder
+          card.addEventListener('click', (e)=>{
+            if(e.target.closest('[data-action="delete-folder"]')) return;
+            currentFolderId = folder.id;
+            refreshDashboard(true);
+          });
+          setsGrid.appendChild(card);
+        });
+      }
+    }
+
+    // Sets (filtered by folder if applicable)
+    const visibleSets = allSets.filter(s => (inFolder ? s.folderId===currentFolderId : !s.folderId));
+    if(!inFolder && !allFolders.length && !visibleSets.length){
+      setsGrid.innerHTML = `
+        <div class="col-span-full text-center p-6 bg-white rounded-xl border">
+          <p class="text-slate-600">No sets yet. Click <span class="font-semibold">Create Set</span> to get started.</p>
+        </div>`;
+      return;
+    }
+
+    visibleSets.forEach(set=>{
+      const card = document.createElement('div');
+      card.className = 'set-card w-full hover:bg-slate-50 transition';
+      card.dataset.setId = set.id;
+      card.innerHTML = `
+        <span class="tile-icon material-icons-outlined">menu_book</span>
+        <div class="flex-1">
+          <div class="title">${escapeHTML(set.name)}</div>
+          <div class="stats mt-1">
+            <span class="text-blue-600 font-semibold"><span class="stat-not-studied">—</span> Terms Not Studied</span>
+            <span class="text-green-600 font-semibold"><span class="stat-mastered">—</span> Terms Mastered</span>
+            <span class="text-orange-500 font-semibold"><span class="stat-learning">—</span> Terms Still Learning</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="icon-btn icon-btn-compact" data-action="move-set" data-set-id="${set.id}" title="Move">
+            <span class="material-icons-outlined">drive_file_move</span>
+          </button>
+          <button class="icon-btn icon-btn-compact" data-action="delete-set" data-set-id="${set.id}" data-set-name="${escapeHTML(set.name)}" title="Delete">
+            <span class="material-icons-outlined">delete</span>
+          </button>
+        </div>
+      `;
+      // open set (non-action click)
+      card.addEventListener('click', (e)=>{
+        if(e.target.closest('[data-action]')) return;
+        loadSet(set.id, set.name);
+      });
+      setsGrid.appendChild(card);
+      fetchSetStats(set.id, card);
+    });
+  }
+
+  function fetchSetStats(setId, cardEl){
+    try{
+      log('Fetch set stats:', setId);
+      google.script.run
+        .withSuccessHandler(terms=>{
+          log('Stats received:', { setId, termCount: Array.isArray(terms)? terms.length : -1 });
+          if(!Array.isArray(terms)) return;
+          let mastered=0, learning=0, notStudied=0;
+          terms.forEach(t=>{
+            const s = (t.status||'Not Studied').toLowerCase();
+            if(s==='mastered') mastered++;
+            else if(s.startsWith('still')) learning++;
+            else notStudied++;
+          });
+          cardEl.querySelector('.stat-not-studied').textContent = notStudied;
+          cardEl.querySelector('.stat-mastered').textContent   = mastered;
+          cardEl.querySelector('.stat-learning').textContent   = learning;
+        })
+        .withFailureHandler(err=>{ console.warn('getTerms failed', setId, err); })
+        .getTerms(setId);
+    }catch(e){ console.warn('fetchSetStats skipped', e); }
+  }
+
+  // =====================
+  // Study view & data
+  // =====================
+  async function loadSet(setId, setName){
+    showLoader(`Loading ${setName}…`);
+    currentSetId = setId; currentSetName = setName; setTitle.textContent = setName;
+    log('Load set:', setId, setName);
+    try{
+      const terms = await new Promise((resolve,reject)=>{
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getTerms(setId);
+      });
+      if(terms?.error) throw new Error(terms.error);
+      allCardsMaster = Array.isArray(terms) ? terms.map(t=>({
+        uuid: t.uuid, rowId: t.id, term: t.term, definition: t.definition,
+        status: t.status,
+        // Coerce starred to boolean in case legacy string values exist.
+        starred: (typeof t.starred === 'boolean') ? t.starred : String(t.starred).toLowerCase() === 'true',
+        correctInARow: t.correctInARow
+      })) : [];
+      activeCardDeck = [...allCardsMaster];
+      currentCardIndex = 0;
+      showView('study');
+      switchMode('overview');
+      log('Set loaded:', { setId, count: allCardsMaster.length });
+    }catch(err){
+      console.error('loadSet error', err);
+      showInfo('Error', `<p class="text-slate-600">Could not load the set. Please verify your Sheet and permissions.</p>`);
+      showView('dashboard');
+    }finally{
+      hideLoader();
+    }
+  }
+
+  // =====================
+  // Modes
+  // =====================
+  function switchMode(mode){
+    log('Switch mode:', mode);
+    if(bottomControls) bottomControls.style.display = mode==='flashcards' ? 'grid' : 'none';
+    modeContainers?.forEach(c=>c.classList.remove('active'));
+    modeButtons?.forEach(b=>b.classList.remove('active'));
+    $id(`${mode}-mode`)?.classList.add('active');
+    document.querySelector(`button[data-mode="${mode}"]`)?.classList.add('active');
+
+    if(mode==='overview') renderOverview();
+    if(mode==='test') renderTestSetup();
+
+    if(allCardsMaster.length){
+      if(mode==='flashcards') updateFlashcardView();
+      if(mode==='learn') startLearnSession();
+    }else{
+      if(mode==='flashcards') updateFlashcardView();
+    }
+  }
+
+  // =====================
+  // Flashcards
+  // =====================
+  function openEditModal() {
+    if (activeCardDeck.length === 0) return;
+    const card = activeCardDeck[currentCardIndex];
+    editTermInput.innerHTML = card.term;
+    editDefinitionInput.innerHTML = card.definition;
+    editTermModal.classList.remove('hidden');
+  }
+
+  function getHint() {
+    const hintBtn = $id('flashcard-hint-btn');
+    if (!hintBtn) return;
+
+    if (hintBtn.dataset.hintShown === 'true') {
+      hintBtn.innerHTML = `<span class="material-icons-outlined">lightbulb</span><span class="ml-2">Get a hint</span>`;
+      hintBtn.dataset.hintShown = 'false';
+    } else {
+      if (activeCardDeck.length === 0) return;
+      const card = activeCardDeck[currentCardIndex];
+      const definitionHTML = card.definition || '';
+      const definitionText = new DOMParser().parseFromString(definitionHTML, "text/html").documentElement.textContent;
+
+      if (!definitionText.trim()) {
+        hintBtn.innerHTML = `<span class="material-icons-outlined">lightbulb</span><span class="ml-2">No definition to hint.</span>`;
+        hintBtn.dataset.hintShown = 'true';
+        return;
+      }
+
+      // Improved hint logic: show one-third of the words.
+      const words = definitionText.trim().split(/\s+/);
+      const hintWordCount = Math.max(1, Math.ceil(words.length / 3));
+      const hint = words.slice(0, hintWordCount).join(' ');
+
+      hintBtn.innerHTML = `<span class="material-icons-outlined">lightbulb</span><span class="ml-2">${escapeHTML(hint)}...</span>`;
+      hintBtn.dataset.hintShown = 'true';
+    }
+  }
+
+  function updateFlashcardView(){
+    if(!cardFront || !cardBack || !cardCounter) return;
+    const cardFrontContent = cardFront.querySelector('.card-face-content');
+    const cardBackContent = cardBack.querySelector('.card-face-content');
+
+    if(activeCardDeck.length===0){
+      const empty = `<div class="text-center"><p class="text-xl font-semibold">No cards yet!</p><p class="mt-2 text-slate-500">Click the “+” to add a term.</p></div>`;
+      if (cardFrontContent) cardFrontContent.innerHTML = empty;
+      if (cardBackContent) cardBackContent.innerHTML = empty;
+      cardCounter.textContent = '0 / 0';
+      return;
+    }
+
+    flashcard?.classList.remove('is-flipped');
+
+    // Reset hint button
+    const hintBtn = $id('flashcard-hint-btn');
+    if (hintBtn) {
+        hintBtn.innerHTML = `<span class="material-icons-outlined">lightbulb</span><span class="ml-2">Get a hint</span>`;
+        hintBtn.dataset.hintShown = 'false';
+    }
+
+    setTimeout(()=>{
+      const c = activeCardDeck[currentCardIndex];
+      if (cardFrontContent) cardFrontContent.innerHTML = c.term;
+      if (cardBackContent) cardBackContent.innerHTML = c.definition;
+
+      // Update speak buttons
+      const speakBtnFront = $id('flashcard-speak-btn');
+      const speakBtnBack = $id('flashcard-speak-btn-back');
+      if (speakBtnFront) speakBtnFront.onclick = (e) => { e.stopPropagation(); speakText(c.term); };
+      if (speakBtnBack) speakBtnBack.onclick = (e) => { e.stopPropagation(); speakText(c.definition); };
+
+      // Update star buttons
+      const starBtnFront = $id('flashcard-star-btn').querySelector('i');
+      const starBtnBack = $id('flashcard-star-btn-back').querySelector('i');
+      if (starBtnFront) starBtnFront.classList.toggle('starred', c.starred);
+      if (starBtnBack) starBtnBack.classList.toggle('starred', c.starred);
+
+      cardCounter.textContent = `${currentCardIndex+1} / ${activeCardDeck.length}`;
+      log('Flashcard render', { index: currentCardIndex, uuid: c.uuid });
+    },150);
+  }
+
+  function shuffleDeck(){
+    shuffleBtn?.classList.toggle('active');
+    if(shuffleBtn?.classList.contains('active')) activeCardDeck = shuffle(activeCardDeck);
+    else activeCardDeck = [...allCardsMaster];
+    currentCardIndex = 0; updateFlashcardView();
+    log('Deck shuffled?', shuffleBtn?.classList.contains('active'));
+  }
+  function nextCard(){ if(activeCardDeck.length===0) return; currentCardIndex = (currentCardIndex+1) % activeCardDeck.length; updateFlashcardView(); }
+  function prevCard(){ if(activeCardDeck.length===0) return; currentCardIndex = (currentCardIndex-1+activeCardDeck.length) % activeCardDeck.length; updateFlashcardView(); }
+
+  function markCard(isCorrect){
+    if(activeCardDeck.length===0) return;
+    const uuid = activeCardDeck[currentCardIndex].uuid;
+    try{
+      google.script.run.withSuccessHandler(()=>log('Status updated OK', { uuid, isCorrect }))
+        .withFailureHandler(err=>log('Status update failed', err))
+        .updateStatus(currentSetId, uuid, isCorrect); // uuid, not row
+    }catch(_){}
+    const master = allCardsMaster.find(c=>c.uuid===uuid);
+    if(master){
+      master.correctInARow = isCorrect ? (master.correctInARow||0)+1 : 0;
+      if((master.correctInARow||0) >= 2) master.status = 'Mastered';
+      else if((master.correctInARow||0) > 0 || master.status==='Still Learning') master.status = 'Still Learning';
+      else master.status = 'Not Studied';
+    }
+    nextCard();
+  }
+
+  // =====================
+  // Overview
+  // =====================
+  async function renderOverview(){
+    if(!overviewModeContainer) return;
+
+    const mastered = allCardsMaster.filter(c=>c.status==='Mastered');
+    const learning = allCardsMaster.filter(c=>c.status==='Still Learning');
+    const notStudied = allCardsMaster.filter(c=>c.status==='Not Studied' || !c.status);
+    log('Render overview', { total: allCardsMaster.length, mastered: mastered.length, learning: learning.length, notStudied: notStudied.length, bulkMode, selected: bulkSelectedUUIDs.size });
+
+    let headerHtml = `
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold">Terms</h2>
+        ${bulkMode ? '<button id="exit-bulk-btn" class="px-3 py-1 bg-slate-200 rounded">Exit Select</button>' : ''}
+      </div>
+    `;
+
+    let bulkBar = '';
+    if(bulkMode){
+      bulkBar = `
+        <div id="bulk-bar" class="flex items-center justify-between p-2 bg-slate-50 border rounded-lg mb-3">
+          <div class="text-sm text-slate-600"><span id="bulk-selected-count">${bulkSelectedUUIDs.size}</span> selected</div>
+          <div class="flex gap-2">
+            <button id="bulk-delete-confirm" class="px-3 py-1 bg-red-600 text-white rounded ${bulkSelectedUUIDs.size? '' : 'opacity-50 pointer-events-none'}">Delete Selected</button>
+            <button id="bulk-delete-gemini-confirm" class="px-3 py-1 bg-orange-500 text-white rounded ${bulkSelectedUUIDs.size? '' : 'opacity-50 pointer-events-none'}">Delete Selected &amp; Gemini Update</button>
+          </div>
+        </div>`;
+    }
+
+    let termsHtml = '';
+    if(!allCardsMaster.length){
+      termsHtml = `<div class="text-center p-10 bg-slate-50 rounded-xl">
+        <p class="text-lg font-semibold">This set is empty.</p>
+        <p class="mt-1 text-slate-500">Click the <span class="material-icons-outlined align-middle text-slate-600">add</span> to add a term, or use import.</p>
+      </div>`;
+    }else{
+      if(notStudied.length) termsHtml += createOverviewSection('Not studied', notStudied);
+      if(learning.length)   termsHtml += createOverviewSection('Still learning', learning);
+      if(mastered.length)   termsHtml += createOverviewSection('Mastered', mastered);
+    }
+
+    const guideContent = await new Promise((resolve,reject)=>{ google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).loadStudyGuide(currentSetId); });
+    let studyGuideHtml = `
+      <div class="mt-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold">Study Guide</h2>
+          <div class="flex gap-2">
+            <button id="save-guide-btn-overview" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-semibold">Save Guide</button>
+            <button id="summarize-guide-btn-overview" class="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm font-semibold">✨ Summarize</button>
+            <button id="regenerate-guide-btn" class="px-3 py-1 text-white rounded-md text-sm font-semibold" style="background-color:#b00dc2ff">✨ Regenerate Guide</button>
+            <button id="targeted-edit-btn" class="px-3 py-1 text-white rounded-md text-sm font-semibold" style="background-color:#eb8a0aff">✨ Targeted Edit</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border">
+          <div id="study-guide-toolbar" class="p-2 border-b flex-wrap items-center gap-1 bg-slate-50 rounded-t-xl hidden">
+            <select data-command="fontName" class="text-sm border border-slate-200 rounded-md p-1 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" title="Font Family">
+                <option value="Inter, sans-serif" selected>Sans Serif</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Caveat', cursive" style="font-family: 'Caveat', cursive; font-size: 1.2rem;">Caveat</option>
+                <option value="'Jacquard 24', system-ui" style="font-family: 'Jacquard 24', system-ui; font-size: 1.2rem;">Jacquard 24</option>
+            </select>
+            <select data-command="fontSize" class="text-sm border border-slate-200 rounded-md p-1 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" title="Font Size">
+                <option value="10px">10px</option>
+                <option value="12px">12px</option>
+                <option value="14px" selected>14px</option>
+                <option value="16px">16px</option>
+                <option value="18px">18px</option>
+                <option value="20px">20px</option>
+                <option value="24px">24px</option>
+            </select>
+            <div class="border-l h-5 mx-1 border-slate-300"></div>
+            <button class="rte-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+            <button class="rte-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+            <button class="rte-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+            <button class="rte-btn" data-command="strikethrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+            <button class="rte-btn" data-command="foreColor" data-value="prompt" title="Text Color"><i class="fas fa-font"></i></button>
+            <button class="rte-btn" data-command="backColor" data-value="prompt" title="Highlight Color"><i class="fas fa-highlighter"></i></button>
+            <div class="border-l h-5 mx-1 border-slate-300"></div>
+            <button class="rte-btn" data-command="createLink" data-value="prompt" title="Insert Link"><i class="fas fa-link"></i></button>
+            <button class="rte-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+            <button class="rte-btn" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+            <button class="rte-btn" data-command="removeFormat" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+            <div class="border-l h-5 mx-1 border-slate-300"></div>
+            <button class="rte-btn" data-command="justifyLeft" title="Align Left"><i class="fas fa-align-left"></i></button>
+            <button class="rte-btn" data-command="justifyCenter" title="Align Center"><i class="fas fa-align-center"></i></button>
+            <button class="rte-btn" data-command="justifyRight" title="Align Right"><i class="fas fa-align-right"></i></button>
+            <button class="rte-btn" data-command="justifyFull" title="Justify"><i class="fas fa-align-justify"></i></button>
+            <div class="border-l h-5 mx-1 border-slate-300"></div>
+            <button id="study-guide-rte-image-btn" class="rte-btn" title="Insert Image from URL"><i class="fas fa-image"></i></button>
+            <button id="study-guide-drive-image-btn" class="rte-btn" title="Insert Image from Drive"><span class="material-icons-outlined">file_upload</span></button>
+          </div>
+          <div id="study-guide-content-overview" class="p-4 min-h-[160px]" contenteditable="true">${guideContent || ''}</div>
+        </div>
+      </div>
+    `;
+
+    overviewModeContainer.innerHTML = headerHtml + bulkBar + termsHtml + studyGuideHtml;
+
+    $id('exit-bulk-btn')?.addEventListener('click', ()=>{ bulkMode=false; bulkSelectedUUIDs.clear(); renderOverview(); });
+    $id('save-guide-btn-overview')?.addEventListener('click', ()=>{
+      const content = $id('study-guide-content-overview').innerHTML;
+      const t = toast({message:'Saving study guide…', spinner:true, ttl:0});
+      log('Save study guide start', { setId: currentSetId, size: content.length });
+      google.script.run
+        .withSuccessHandler(()=>{ t.done(true, 'Study guide saved.'); log('Save study guide ok', { setId: currentSetId }); })
+        .withFailureHandler(err=>{ console.error('Save guide failed', err); t.done(false, 'Failed to save.'); })
+        .saveStudyGuide(currentSetId, content);
+    });
+    $id('summarize-guide-btn-overview')?.addEventListener('click', ()=>{
+      const content = $id('study-guide-content-overview').innerText || '';
+      if(content.trim().length < 50){ showInfo('Too short', '<p>Please add more notes before summarizing.</p>'); return; }
+      const t = toast({message:'Summarizing with Gemini…', spinner:true, ttl:0});
+      log('Summarize guide start', { setId: currentSetId, len: content.length });
+      google.script.run
+        .withSuccessHandler(summary=>{
+          t.done(true, 'Summary ready.');
+          showInfo('✨ Study Guide Summary', `<div class="prose">${summary}</div>`);
+          log('Summarize guide ok');
+        })
+        .withFailureHandler(err=>{
+          const msg = err.message || 'Failed to summarize.';
+          console.error('Summarize failed', err);
+          t.done(false, msg);
+        })
+        .summarizeStudyGuide(content);
+    });
+
+    // NEW: Regenerate entire guide from current terms
+    $id('regenerate-guide-btn')?.addEventListener('click', ()=>{
+      const t = toast({message:'Regenerating guide with Gemini…', spinner:true, ttl:0});
+      const currentGuideHtml = $id('study-guide-content-overview')?.innerHTML || '';
+      google.script.run
+        .withSuccessHandler(res=>{
+          if(res?.error){
+            t.done(false, res.error);
+            console.error('Regenerate guide failed', res.error);
+          } else if(typeof res==='string'){
+            $id('study-guide-content-overview').innerHTML = res;
+            t.done(true,'Guide regenerated.');
+          } else {
+            t.done(false,'Failed to regenerate guide. Unexpected response.');
+            console.error('Regenerate guide failed with unexpected response', res);
+          }
+        })
+        .withFailureHandler(err=>{ console.error('Regenerate failed', err); t.done(false,'Failed to regenerate guide.'); })
+        .regenerateStudyGuideFromTerms(currentSetId, currentGuideHtml);
+    });
+
+    // NEW: Targeted Edit button
+    $id('targeted-edit-btn')?.addEventListener('click', () => {
+      targetedEditInstructions.value = '';
+      targetedEditModal.classList.remove('hidden');
+    });
+    safeOn(targetedEditClose, 'click', () => targetedEditModal.classList.add('hidden'));
+    safeOn(targetedEditCancel, 'click', () => targetedEditModal.classList.add('hidden'));
+    safeOn(targetedEditSubmit, 'click', () => {
+      const instructions = targetedEditInstructions.value.trim();
+      if (!instructions) {
+        showInfo('No instructions', '<p>Please enter instructions for the edit.</p>');
+        return;
+      }
+      const t = toast({message:'Performing targeted edit with Gemini…', spinner:true, ttl:0});
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res?.error) {
+            t.done(false, res.error);
+            console.error('Targeted edit failed', res.error);
+          } else if (typeof res === 'string') {
+            $id('study-guide-content-overview').innerHTML = res;
+            targetedEditModal.classList.add('hidden');
+            t.done(true,'Guide updated.');
+          } else {
+            t.done(false, 'Failed to edit guide. Unexpected response.');
+            console.error('Targeted edit failed with unexpected response', res);
+          }
+        })
+        .withFailureHandler(err => {
+          console.error('Targeted edit failed', err);
+          t.done(false, 'Failed to edit guide.');
+        })
+        .targetedEditStudyGuide(currentSetId, instructions);
+    });
+
+
+    // Bulk selection
+    if(bulkMode){
+      overviewModeContainer.querySelectorAll('.bulk-checkbox').forEach(cb=>{
+        cb.addEventListener('change', ()=>{
+          const id = cb.dataset.uuid;
+          if(cb.checked) bulkSelectedUUIDs.add(id); else bulkSelectedUUIDs.delete(id);
+          const countEl = $id('bulk-selected-count'); if(countEl) countEl.textContent = bulkSelectedUUIDs.size;
+          ['bulk-delete-confirm','bulk-delete-gemini-confirm'].forEach(idBtn=>{
+            const btn=$id(idBtn);
+            if(!btn) return;
+            if(bulkSelectedUUIDs.size>0){ btn.classList.remove('opacity-50','pointer-events-none'); }
+            else { btn.classList.add('opacity-50','pointer-events-none'); }
+          });
+        });
+      });
+
+      $id('bulk-delete-confirm')?.addEventListener('click', ()=>{
+        if(!bulkSelectedUUIDs.size){ showInfo('No selection', '<p>Select terms first.</p>'); return; }
+        const labels = allCardsMaster.filter(c=>bulkSelectedUUIDs.has(c.uuid)).map(c=>`<li>${escapeHTML(c.term)}</li>`).join('');
+        showConfirm({
+          title: 'Delete Selected Terms',
+          html: `<p>Delete these terms?</p><ul class="list-disc ml-5 mt-2 text-slate-700">${labels}</ul>`,
+          confirmText: 'Delete',
+          onConfirm: ()=> doDeleteTerm(Array.from(bulkSelectedUUIDs), false)
+        });
+      });
+
+      $id('bulk-delete-gemini-confirm')?.addEventListener('click', ()=>{
+        if(!bulkSelectedUUIDs.size){ showInfo('No selection', '<p>Select terms first.</p>'); return; }
+        const labels = allCardsMaster.filter(c=>bulkSelectedUUIDs.has(c.uuid)).map(c=>`<li>${escapeHTML(c.term)}</li>`).join('');
+        showConfirm({
+          title: 'Delete Selected Terms',
+          html: `<p>Delete these terms and update study guide with Gemini?</p><ul class="list-disc ml-5 mt-2 text-slate-700">${labels}</ul>`,
+          confirmText: 'Delete',
+          onConfirm: ()=> doDeleteTerm(Array.from(bulkSelectedUUIDs), true)
+        });
+      });
+    }
+
+    // Study Guide Editor focus/blur logic
+    const studyGuideEditor = $id('study-guide-content-overview');
+    const studyGuideToolbar = $id('study-guide-toolbar');
+
+    if (studyGuideEditor && studyGuideToolbar) {
+        studyGuideEditor.addEventListener('focus', () => {
+            studyGuideToolbar.classList.remove('hidden');
+            studyGuideToolbar.classList.add('flex');
+            studyGuideEditor.classList.add('is-editing');
+        });
+
+        studyGuideEditor.addEventListener('blur', () => {
+            // Use a brief timeout to allow clicks on the toolbar to register before hiding it.
+            // The mousedown handler below should prevent the blur in most cases, but this is a safeguard.
+            setTimeout(() => {
+                if (document.activeElement !== studyGuideEditor && !studyGuideToolbar.contains(document.activeElement)) {
+                    studyGuideToolbar.classList.add('hidden');
+                    studyGuideToolbar.classList.remove('flex');
+                    studyGuideEditor.classList.remove('is-editing');
+                }
+            }, 150);
+        });
+
+        // Prevent the editor from losing focus when a toolbar BUTTON is clicked.
+        // This is crucial for allowing button clicks to go through, while still
+        // allowing other toolbar inputs like <select> to work correctly.
+        studyGuideToolbar.addEventListener('mousedown', e => {
+            if (e.target.closest('button')) {
+                e.preventDefault();
+            }
+        });
+    }
+  }
+
+  function createOverviewSection(title, cards){
+    const color = title.toLowerCase().includes('mastered') ? 'text-green-600' :
+                  title.toLowerCase().includes('still') ? 'text-orange-500' : 'text-blue-600';
+
+    const rows = cards.map(card=>{
+      const checkbox = bulkMode ? `<input type="checkbox" class="bulk-checkbox mr-2" data-uuid="${card.uuid}" ${bulkSelectedUUIDs.has(card.uuid)?'checked':''}/>` : '';
+      return `
+        <div class="overview-term-row border-b last:border-b-0" data-uuid="${card.uuid}" data-row-id="${card.rowId}" data-term="${escapeHTML(card.term)}" data-def="${escapeHTML(card.definition)}">
+          <div class="overview-term-term">
+            ${checkbox}<span class="term-text">${card.term}</span><span class="term-def-divider" aria-hidden="true"></span>
+          </div>
+          <div class="overview-term-def">${card.definition}</div>
+          <div class="overview-term-actions">
+            <button class="icon-btn icon-btn-compact" data-action="explain" title="Explain simply">
+              <span class="material-icons-outlined">auto_awesome</span>
+            </button>
+            <button class="icon-btn icon-btn-compact" data-action="star" title="Star">
+              <i class="fas fa-star ${card.starred?'starred':''}"></i>
+            </button>
+            <button class="icon-btn icon-btn-compact" data-action="edit" title="Edit">
+              <span class="material-icons-outlined">edit</span>
+            </button>
+            <button class="icon-btn icon-btn-compact" data-action="delete" title="Delete term">
+              <span class="material-icons-outlined">delete</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="mb-6">
+        <h3 class="text-lg font-bold mb-2 ${color}">${escapeHTML(title)} (${cards.length})</h3>
+        <div class="bg-white rounded-lg border divide-y">${rows}</div>
+      </div>
+    `;
+  }
+
+  // Row editing
+  function enterEditRow(rowEl, uuid){
+    const termDiv = rowEl.querySelector('.overview-term-term');
+    const defDiv = rowEl.querySelector('.overview-term-def');
+    const card = allCardsMaster.find(c => c.uuid === uuid);
+    if (!card) return;
+
+    const currentTerm = card.term;
+    const currentDef = card.definition;
+
+    termDiv.innerHTML = `<div contenteditable="true" class="border p-1 w-full rounded-md">${currentTerm}</div>`;
+    defDiv.innerHTML  = `<div contenteditable="true" class="border p-1 w-full rounded-md">${currentDef}</div>`;
+    const actions = rowEl.querySelector('.overview-term-actions');
+    actions.querySelector('[data-action="edit"]').outerHTML = `<button class="icon-btn icon-btn-compact" data-action="save" title="Save"><span class="material-icons-outlined text-blue-600">save</span></button>`;
+  }
+  function saveEditRow(rowEl, uuid){
+    const newTerm = rowEl.querySelector('.overview-term-term div[contenteditable]').innerHTML;
+    const newDef  = rowEl.querySelector('.overview-term-def div[contenteditable]').innerHTML;
+
+    const t = toast({message:'Saving term…', spinner:true, ttl:0});
+    log('Edit term save', { uuid, newTerm, newDefLen: newDef.length });
+    google.script.run
+      .withSuccessHandler(()=>{
+        const card = allCardsMaster.find(c=>c.uuid===uuid);
+        if(card){ card.term=newTerm; card.definition=newDef; }
+        renderOverview(); t.done(true, 'Saved.');
+      })
+      .withFailureHandler(err=>{ console.error('Edit term failed', err); t.done(false, 'Save failed.'); })
+      .editTerm(currentSetId, uuid, newTerm, newDef); // uuid-based
+  }
+
+  function saveFlashcardEdit() {
+    if (activeCardDeck.length === 0) return;
+    const card = activeCardDeck[currentCardIndex];
+    const newTerm = editTermInput.innerHTML;
+    const newDef = editDefinitionInput.innerHTML;
+
+    log('Saving flashcard edit:', { setId: currentSetId, uuid: card.uuid, newTerm, newDef });
+
+    const t = toast({message:'Saving term…', spinner:true, ttl:0});
+    google.script.run
+      .withSuccessHandler(() => {
+        log('Flashcard edit successful');
+        card.term = newTerm;
+        card.definition = newDef;
+        const masterCard = allCardsMaster.find(c => c.uuid === card.uuid);
+        if (masterCard) {
+          masterCard.term = newTerm;
+          masterCard.definition = newDef;
+        }
+        editTermModal.classList.add('hidden');
+        updateFlashcardView();
+        t.done(true, 'Saved.');
+      })
+      .withFailureHandler(err => {
+        console.error('Edit term failed', err);
+        t.done(false, 'Save failed.');
+      })
+      .editTerm(currentSetId, card.uuid, newTerm, newDef);
+  }
+
+  // delete term (with optional Gemini update)
+  function confirmDeleteTerm(uuid, termLabel){
+    showConfirm({
+      title: 'Delete Term',
+      html: `<p>Delete <strong>${escapeHTML(termLabel)}</strong>?</p>`,
+      confirmText: 'Delete',
+      altText: 'Delete & Have Gemini Remove From Study Guide',
+      onConfirm: ()=> doDeleteTerm([uuid], false),
+      onAlt: ()=> doDeleteTerm([uuid], true)
+    });
+  }
+
+  function doDeleteTerm(uuids, withGemini){
+    const t = toast({message: withGemini ? 'Deleting & updating guide via Gemini…' : 'Deleting term(s)…', spinner:true, ttl:0});
+    try{
+      const idsArray = Array.from(uuids || []);
+      log('Delete terms start', { uuids: idsArray, withGemini });
+
+      if(idsArray.length === 0){ t.done(false,'No terms selected.'); return; }
+
+      const byUUID = new Map(allCardsMaster.map(c => [c.uuid, c]));
+      const pairs = idsArray
+        .map(id => byUUID.get(id))
+        .filter(Boolean)
+        .map(c => ({ term: c.term, definition: c.definition }));
+
+      if(idsArray.length === 1){
+        const onlyUUID = idsArray[0];
+        if(withGemini){
+          const card = byUUID.get(onlyUUID);
+          google.script.run
+            .withSuccessHandler(res=>{
+              log('Delete single+Gemini result', res);
+              if(res?.error){ console.error(res.error); t.done(false, res.error); return; }
+              loadSet(currentSetId, currentSetName);
+              t.done(true, 'Deleted and updated study guide.');
+            })
+            .withFailureHandler(err=>{
+              const msg = err.message || 'Delete/Gemini update failed.';
+              console.error('Delete single+Gemini error', err);
+              t.done(false, msg);
+            })
+            .deleteTermAndRemoveFromGuideGemini(currentSetId, onlyUUID, card?.term || '', card?.definition || '');
+        } else {
+          google.script.run
+            .withSuccessHandler(res=>{
+              log('Delete single result', res);
+              if(res?.error){ console.error(res.error); t.done(false, res.error || 'Delete failed.'); return; }
+              loadSet(currentSetId, currentSetName);
+              t.done(true, 'Deleted.');
+            })
+            .withFailureHandler(err=>{ console.error('Delete single error', err); t.done(false, err.message || 'Delete failed.'); })
+            .deleteTerm(currentSetId, onlyUUID);
+        }
+      } else {
+        if(withGemini){
+          google.script.run
+            .withSuccessHandler(res=>{
+              log('Bulk delete+Gemini result', res);
+              if(res?.error){ console.error(res.error); t.done(false, res.error); return; }
+              loadSet(currentSetId, currentSetName);
+              t.done(true, 'Deleted selected & updated study guide.');
+            })
+            .withFailureHandler(err=>{
+              const msg = err.message || 'Bulk delete/Gemini update failed.';
+              console.error('Bulk delete+Gemini error', err);
+              t.done(false, msg);
+            })
+            .deleteTermsBulkAndRemoveFromGuideGemini(currentSetId, idsArray, pairs);
+        } else {
+          google.script.run
+            .withSuccessHandler(res=>{
+              log('Bulk delete result', res);
+              if(res?.error){ console.error(res.error); t.done(false, res.error || 'Bulk delete failed.'); return; }
+              loadSet(currentSetId, currentSetName);
+              t.done(true, 'Deleted selected terms.');
+            })
+            .withFailureHandler(err=>{ console.error('Bulk delete error', err); t.done(false, err.message || 'Bulk delete failed.'); })
+            .deleteTermsBulk(currentSetId, idsArray);
+        }
+      }
+    }catch(e){
+      console.error('doDeleteTerm fatal', e);
+      t.done(false, 'Delete failed.');
+    }
+  }
+
+  // Star toggle (UUID or rowId) — consistent toggle semantics
+  function toggleStar(idObj) {
+    const uuid = idObj?.uuid || null;
+    const rowId = idObj?.rowId || null;
+    const key = uuid ? `uuid:${uuid}` : (rowId ? `row:${rowId}` : null);
+    if (!key) return;
+
+    const card = allCardsMaster.find(c => uuid ? c.uuid === uuid : c.rowId === rowId);
+    if (!card) return;
+
+    // The previous logic with a "cancel" feature was causing race conditions.
+    // This simpler approach is more robust.
+    // 1. Immediately toggle the state in memory for a responsive UI.
+    const nextState = !card.starred;
+    card.starred = nextState;
+
+    // 2. Add the definitive final state to the pending updates.
+    //    If a user clicks multiple times, this just overwrites the pending state.
+    pendingStarUpdates.set(key, nextState);
+    log('Star queued', { key, next: nextState, queueSize: pendingStarUpdates.size });
+
+    // 3. Debounce the call to the backend.
+    if (starFlushTimer) clearTimeout(starFlushTimer);
+    starFlushTimer = setTimeout(() => {
+      if (!pendingStarUpdates.size) return;
+
+      const itemsToFlush = Array.from(pendingStarUpdates.entries());
+      const items = itemsToFlush.map(([k, star]) => {
+        if (k.startsWith('uuid:')) return { uuid: k.slice(5), isStarred: star };
+        return { termRowId: Number(k.slice(4)), isStarred: star };
+      });
+
+      // Clear pending updates *before* the async call
+      pendingStarUpdates.clear();
+
+      log('Star flush', { count: items.length });
+      const t = toast({ message: `Saving ${items.length} star change(s)…`, spinner: true, ttl: 4000 });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          log('Star flush ok', res);
+          t.done(true, 'Changes saved.');
+        })
+        .withFailureHandler(err => {
+          console.error('Star flush failed', err);
+          t.done(false, 'Failed to save star changes.');
+          // On failure, the optimistic UI is now out of sync.
+          // Reloading the set is a simple way to fix this.
+          showInfo('Sync Error', '<p>Could not save your star changes. The data will be reloaded to prevent inconsistencies.</p>');
+          loadSet(currentSetId, currentSetName);
+        })
+        .toggleStarsBulk(currentSetId, items);
+    }, STAR_FLUSH_MS);
+
+    // Return the new state immediately for the UI to update.
+    return nextState;
+  }
+
+  // Explain simply (Gemini)
+  function handleExplainSimply(term, definition){
+    const t = toast({message:'Asking Gemini…', spinner:true, ttl:0});
+    google.script.run
+      .withSuccessHandler(explanation=>{
+        t.done(true, 'Ready.');
+        showInfo(`✨ Explaining "${escapeHTML(term)}"`, `<p>${escapeHTML(explanation)}</p>`);
+      })
+      .withFailureHandler(err=>{
+        const msg = err.message || 'Failed.';
+        console.error('Explain failed', err);
+        t.done(false, msg);
+      })
+      .explainTermSimply(term, definition);
+  }
+
+  // =====================
+  // Test UI
+  // =====================
+  function renderTestSetup(){
+    if(!testContentWrapper) return;
+    testContentWrapper.innerHTML = `
+      <div class="h-full flex flex-col items-center justify-center">
+        <button id="open-test-setup-btn" class="px-5 py-3 bg-indigo-600 text-white rounded-lg shadow hover:shadow-lg transition font-semibold">Set up your test</button>
+        <p class="text-slate-500 mt-2">You need at least 4 terms to generate a test.</p>
+      </div>`;
+    $id('open-test-setup-btn')?.addEventListener('click', ()=>{
+      if(allCardsMaster.length<4){ showInfo('Need more terms', '<p>You need at least 4 terms to generate a test.</p>'); return; }
+      openGenerateTestModal();
+    });
+  }
+  function openGenerateTestModal(){
+    if(!$id('generate-test-modal')){
+      const div = document.createElement('div');
+      div.id = 'generate-test-modal';
+      div.className = 'modal-overlay';
+      div.innerHTML = `
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+          <h2 class="text-xl font-bold mb-4">Set up your test</h2>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm text-slate-700">Questions <span class="text-slate-400">(max 70)</span></label>
+              <input type="number" id="question-count" value="20" min="4" max="70" class="mt-1 block w-full p-2 border rounded-md"/>
+            </div>
+            <div class="border-t pt-3">
+              <p class="text-sm font-medium text-slate-700 mb-2">Question types</p>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between"><label for="tf-toggle">True/False</label><label class="switch"><input type="checkbox" id="tf-toggle" checked><span class="slider"></span></label></div>
+                <div class="flex items-center justify-between"><label for="mc-toggle">Multiple choice</label><label class="switch"><input type="checkbox" id="mc-toggle" checked><span class="slider"></span></label></div>
+                <div class="flex items-center justify-between"><label for="match-toggle">Matching</label><label class="switch"><input type="checkbox" id="match-toggle"><span class="slider"></span></label></div>
+                <div class="flex items-center justify-between"><label for="written-toggle">Written</label><label class="switch"><input type="checkbox" id="written-toggle"><span class="slider"></span></label></div>
+              </div>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-5">
+            <button id="cancel-generate-test-btn" class="px-4 py-2 bg-slate-200 rounded">Cancel</button>
+            <button id="confirm-generate-test-btn" class="px-4 py-2 bg-indigo-600 text-white rounded">Start test</button>
+          </div>
+        </div>`;
+      document.body.appendChild(div);
+    }
+    $id('generate-test-modal')?.classList.remove('hidden');
+    $id('cancel-generate-test-btn')?.addEventListener('click', ()=> $id('generate-test-modal').classList.add('hidden'), { once:true });
+    $id('confirm-generate-test-btn')?.addEventListener('click', handleGenerateTest, { once:true });
+  }
+
+  function handleGenerateTest(){
+    const total = Math.max(4, Math.min(70, parseInt($id('question-count')?.value || '20', 10)));
+    const types = {
+      tf:     $id('tf-toggle')?.checked,
+      mc:     $id('mc-toggle')?.checked,
+      match:  $id('match-toggle')?.checked,
+      written:$id('written-toggle')?.checked
+    };
+    const selected = Object.keys(types).filter(k=>types[k]);
+    if(!selected.length){ showInfo('Select question types', '<p>Please choose at least one type.</p>'); return; }
+    if(allCardsMaster.length < 4){ showInfo('Need more terms', '<p>You need at least 4 terms to generate a test.</p>'); return; }
+
+    let cpt = Math.floor(total/selected.length), rem = total % selected.length;
+    const config={}; selected.forEach(t=>{ config[t] = cpt + (rem>0?1:0); if(rem>0) rem--; }); config.total = total;
+
+    $id('generate-test-modal')?.classList.add('hidden');
+    showLoader('Preparing your test…');
+    const questions = generateLocalTestQuestions(allCardsMaster, config);
+    testSession = { questions, currentIndex:0, answers:[], score:0 };
+    renderTestQuestion();
+    hideLoader();
+  }
+  function generateLocalTestQuestions(terms, config){
+    const items = terms.map(t=>({ term:normalize(t.term), definition:normalize(t.definition) })).filter(t=>t.term && t.definition);
+    const qs=[]; const pool = shuffle(items);
+
+    for(let i=0;i<(config.tf||0);i++){
+      const a = pool[i % pool.length];
+      const isTrue = Math.random()<0.5 || items.length<2;
+      let pairDef = a.definition;
+      if(!isTrue){
+        const others = items.filter(x=>x.term!==a.term);
+        pairDef = others.length ? shuffle(others)[0].definition : a.definition;
+      }
+      const correct = (pairDef === a.definition);
+      qs.push({ type:'tf', prompt:'Is this pairing correct?', leftLabel:'Definition', rightLabel:'Term', leftText:pairDef, rightText:a.term, correct });
+    }
+
+    for(let i=0;i<(config.mc||0);i++){
+      const a = pool[(i+7)%pool.length];
+      const distractors = shuffle(items.filter(x=>x.term!==a.term)).slice(0,3).map(x=>x.term);
+      let options = shuffle([a.term, ...distractors]);
+      while(options.length<4) options.push('—');
+      const answerIndex = options.indexOf(a.term);
+      qs.push({ type:'mc', prompt:a.definition, options, answerIndex });
+    }
+
+    const matchCount = Math.min(config.match||0, Math.floor(items.length/5));
+    let idx=0;
+    for(let i=0;i<matchCount;i++){
+      const slice = items.slice(idx, idx+5);
+      const picked = slice.length<5 ? shuffle(items).slice(0, Math.min(5, items.length)) : slice;
+      qs.push({ type:'match', prompt:'Match the definitions to the correct terms', pairs:picked.map(p=>({ left:p.term, right:p.definition })) });
+      idx += 5;
+    }
+
+    for(let i=0;i<(config.written||0);i++){
+      const a = pool[(i+13)%pool.length];
+      const plainTextTerm = new DOMParser().parseFromString(a.term, "text/html").documentElement.textContent || "";
+      const acceptedAnswers = [plainTextTerm, plainTextTerm.replace(/\([^)]*\)/g,'').trim()];
+      qs.push({ type:'written', prompt:a.definition, acceptedAnswers:Array.from(new Set(acceptedAnswers.map(normalize))) });
+    }
+
+    return shuffle(qs).slice(0, config.total||qs.length);
+  }
+
+  function renderTestQuestion(){
+    const wrap = testContentWrapper;
+    const s = testSession;
+    if(!wrap || !s) return;
+    if(s.currentIndex >= s.questions.length) return renderTestResults();
+
+    const q = s.questions[s.currentIndex];
+    wrap.innerHTML = ''; // clear
+
+    if(q.type==='tf'){
+      wrap.innerHTML = `
+        <div class="max-w-3xl mx-auto">
+          <div class="text-lg font-semibold mb-2">${escapeHTML(q.prompt)}</div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="p-3 bg-slate-50 rounded border"><div class="text-xs text-slate-500 mb-1">${q.leftLabel}</div>${escapeHTML(q.leftText)}</div>
+            <div class="p-3 bg-slate-50 rounded border"><div class="text-xs text-slate-500 mb-1">${q.rightLabel}</div>${escapeHTML(q.rightText)}</div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button id="btn-tf-true" class="px-4 py-2 rounded bg-indigo-600 text-white">True</button>
+            <button id="btn-tf-false" class="px-4 py-2 rounded bg-slate-200">False</button>
+          </div>
+          <div class="mt-3 text-slate-500" id="q-progress">${s.currentIndex+1} / ${s.questions.length}</div>
+        </div>`;
+      $id('btn-tf-true').onclick = ()=> submitAnswer(q.type, true, q.correct===true);
+      $id('btn-tf-false').onclick = ()=> submitAnswer(q.type, false, q.correct===false);
+      return;
+    }
+
+    if(q.type==='mc'){
+      const opts = q.options.map((opt,i)=>`<button data-idx="${i}" class="test-option w-full text-left p-3 rounded mb-2">${escapeHTML(opt)}</button>`).join('');
+      wrap.innerHTML = `
+        <div class="max-w-3xl mx-auto">
+          <div class="text-lg font-semibold mb-3">What term matches the definition?</div>
+          <div class="p-3 bg-slate-50 rounded border mb-3">${escapeHTML(q.prompt)}</div>
+          <div>${opts}</div>
+          <div class="mt-3 text-slate-500" id="q-progress">${s.currentIndex+1} / ${s.questions.length}</div>
+        </div>`;
+      wrap.querySelectorAll('.test-option').forEach(btn=>{
+        btn.onclick = ()=> {
+          const sel = parseInt(btn.dataset.idx,10);
+          submitAnswer(q.type, sel, sel===q.answerIndex, btn);
+        };
+      });
+      return;
+    }
+
+    if(q.type==='match'){
+      // simple matching: user clicks a term then a definition
+      const pairs = shuffle(q.pairs.slice());
+      const lefts = pairs.map((p,i)=>`<div class="match-option p-2 bg-slate-50 rounded border" data-side="L" data-i="${i}">${escapeHTML(p.left)}</div>`).join('');
+      const rights = shuffle(pairs.slice()).map((p,i)=>`<div class="match-option p-2 bg-slate-50 rounded border" data-side="R" data-i="${i}">${escapeHTML(p.right)}</div>`).join('');
+      wrap.innerHTML = `
+        <div class="max-w-4xl mx-auto">
+          <div class="text-lg font-semibold mb-3">${escapeHTML(q.prompt)}</div>
+          <div class="grid grid-cols-2 gap-4">
+            <div id="match-left">${lefts}</div>
+            <div id="match-right">${rights}</div>
+          </div>
+          <div class="mt-4"><button id="match-submit" class="px-4 py-2 rounded bg-indigo-600 text-white">Submit</button></div>
+          <div class="mt-3 text-slate-500" id="q-progress">${s.currentIndex+1} / ${s.questions.length}</div>
+        </div>`;
+      const sel = {L:null,R:null, map:{}};
+      wrap.querySelectorAll('.match-option').forEach(el=>{
+        el.onclick = ()=>{
+          const side = el.dataset.side, idx = el.dataset.i;
+          el.classList.toggle('selected');
+          if(sel[side]===idx){ sel[side]=null; } else { sel[side]=idx; }
+          if(sel.L!==null && sel.R!==null){
+            sel.map[sel.L]=sel.R;
+            // clear selection
+            wrap.querySelectorAll('.match-option.selected').forEach(x=>x.classList.remove('selected'));
+            sel.L=null; sel.R=null;
+          }
+        };
+      });
+      $id('match-submit').onclick = ()=>{
+        // score: correct if all left indices map to same right where term->definition matches
+        let correctPairs=0;
+        pairs.forEach((p,li)=>{
+          const rIndex = sel.map[li];
+          if(rIndex==null) return;
+          const rightDef = wrap.querySelector(`#match-right .match-option[data-i="${rIndex}"]`)?.textContent.trim();
+          if(normalize(p.right)===normalize(rightDef)) correctPairs++;
+        });
+        const isCorrect = (correctPairs===pairs.length);
+        submitAnswer(q.type, sel.map, isCorrect);
+      };
+      return;
+    }
+
+    if(q.type==='written'){
+      wrap.innerHTML = `
+        <div class="max-w-3xl mx-auto">
+          <div class="text-lg font-semibold mb-3">Type the correct term for this definition:</div>
+          <div class="p-3 bg-slate-50 rounded border mb-3">${escapeHTML(q.prompt)}</div>
+          <input id="written-input" class="w-full p-3 border rounded" placeholder="Your answer"/>
+          <div class="mt-4"><button id="written-submit" class="px-4 py-2 rounded bg-indigo-600 text-white">Submit</button></div>
+          <div class="mt-3 text-slate-500" id="q-progress">${s.currentIndex+1} / ${s.questions.length}</div>
+        </div>`;
+      $id('written-submit').onclick = ()=>{
+        const ans = normalize($id('written-input').value);
+        const ok = (q.acceptedAnswers||[]).some(a => ans===a);
+        submitAnswer(q.type, ans, ok);
+      };
+      return;
+    }
+  }
+
+  function submitAnswer(type, userAnswer, isCorrect, clickedBtn){
+    testSession.answers.push({ type, userAnswer, isCorrect });
+    if(type==='mc' && clickedBtn){
+      clickedBtn.classList.add(isCorrect?'correct':'incorrect');
+    }
+    if(isCorrect) testSession.score++;
+    setTimeout(()=>{
+      testSession.currentIndex++;
+      renderTestQuestion();
+    }, 300);
+  }
+
+  function renderTestResults(){
+    const s = testSession;
+    const total = s.questions.length;
+    const pct = Math.round((s.score/total)*100);
+    testContentWrapper.innerHTML = `
+      <div class="max-w-xl mx-auto text-center">
+        <div class="text-2xl font-bold mb-2">Results</div>
+        <div class="text-lg mb-4">${s.score} / ${total} (${pct}%)</div>
+        <div class="flex gap-3 justify-center">
+          <button id="btn-retake" class="px-4 py-2 rounded bg-indigo-600 text-white">Retake (same config)</button>
+          <button id="btn-back-setup" class="px-4 py-2 rounded bg-slate-200">Back to Setup</button>
+        </div>
+      </div>`;
+    $id('btn-retake').onclick = ()=> { switchMode('test'); openGenerateTestModal(); };
+    $id('btn-back-setup').onclick = ()=> { switchMode('test'); };
+  }
+
+  // Learn placeholder
+  function startLearnSession(){
+    if(!learnModeContainer) return;
+    learnModeContainer.innerHTML = `<div class="text-center p-8 m-auto"><p class="text-xl font-semibold">Learn Mode is Coming Soon!</p></div>`;
+  }
+
+  // =====================
+  // Import (Gemini) — guardrails
+  // =====================
+  function handleImport(updateGuide){
+    const f = importFileInput?.files?.[0];
+    if(!f){ showInfo('No file','<p>Please choose a file first.</p>'); return; }
+    // Frontend size guard (~10MB)
+    const MB = f.size/1024/1024;
+    if(MB>10){ importSizeWarn.classList.remove('hidden'); importSizeWarn.textContent='Large file detected (>10MB). Import may fail due to API limits.'; }
+    const t = toast({message: updateGuide ? 'Generating terms & updating guide…' : 'Generating terms…', spinner:true, ttl:0});
+    log('Import start', { fileName: f.name, size: f.size, type: f.type, updateGuide });
+
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const dataUrl = e.target.result || '';
+      const base64 = String(dataUrl).split(',')[1] || '';
+      const mime = f.type || 'application/octet-stream';
+      const instructions = importInstructions?.value || '';
+
+      google.script.run
+        .withSuccessHandler(res=>{
+          log('Import result', res);
+          if(res?.error){ console.error('Import error', res.error); t.done(false,'Import failed.'); showInfo('Import error', `<p>${escapeHTML(res.error)}</p>`); return; }
+          importModal?.classList.add('hidden');
+          t.done(true,'Done.');
+          loadSet(currentSetId, currentSetName);
+        })
+        .withFailureHandler(err=>{ console.error('Import failed', err); t.done(false,'Import failed.'); })
+        .processImportedFile(currentSetId, f.name, mime, base64, instructions, updateGuide);
+    };
+    reader.readAsDataURL(f);
+  }
+
+  // =====================
+  // Polling — dashboard (15s) + refresh button
+  // =====================
+  async function refreshDashboard(showLoaderOnce=false){
+    try{
+      if(showLoaderOnce) showLoader('Loading…');
+      refreshIcon.classList.add('spin');
+      const payload = await new Promise((resolve,reject)=>{
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).listFoldersAndSets();
+      });
+      if(payload?.error) throw new Error(payload.error);
+      allFolders = payload.folders || [];
+      allSets = (payload.sets || []).filter(s => currentFolderId ? s.folderId===currentFolderId || s.folderId : true);
+      renderDashboard();
+    }catch(e){
+      console.error('refreshDashboard error', e, e.stack);
+      showInfo('Error','<p>Could not load your folders/sets. Check SPREADSHEET_ID and sharing.</p>');
+    }finally{
+      refreshIcon.classList.remove('spin');
+      if(showLoaderOnce) hideLoader();
+    }
+  }
+
+  function startDashboardPolling(){
+    stopDashboardPolling();
+    log('Dashboard polling start (15s)');
+    refreshDashboard(true);
+    dashboardPollInterval = setInterval(()=> refreshDashboard(false), 15000);
+  }
+  function stopDashboardPolling(){ if(dashboardPollInterval){ clearInterval(dashboardPollInterval); dashboardPollInterval=null; log('Dashboard polling stopped'); } }
+
+  // =====================
+  // Folders — UI actions
+  // =====================
+  function openCreateFolderModal(){ createFolderModal?.classList.remove('hidden'); }
+  function closeCreateFolderModal(){ createFolderModal?.classList.add('hidden'); }
+
+  function populateFolderSelect(selectEl, includeRoot=true, preselectId=null){
+    if(!selectEl) return;
+    selectEl.innerHTML = '';
+    if(includeRoot){
+      const opt = document.createElement('option');
+      opt.value = ''; opt.textContent = '— No folder —';
+      selectEl.appendChild(opt);
+    }
+    allFolders.forEach(f=>{
+      const opt = document.createElement('option');
+      opt.value = f.id; opt.textContent = f.name;
+      selectEl.appendChild(opt);
+    });
+    if(preselectId!==undefined && preselectId!==null){
+      selectEl.value = preselectId || '';
+    }
+  }
+
+  function openMoveSetModal(setId){
+    moveSetModal.classList.remove('hidden');
+    moveSetModal.dataset.setId = setId;
+    populateFolderSelect(moveFolderSelect, true, currentFolderId || '');
+  }
+
+  // =====================
+  // Init & Event bindings
+  // =====================
+  function assignDOMElements(){
+    loader = $id('loader'); loaderText = $id('loader-text');
+    dashboardView = $id('dashboard-view'); studyView = $id('study-view'); setsGrid = $id('sets-grid');
+
+    createSetModal = $id('create-set-modal'); newSetNameInput=$id('new-set-name-input');
+    setFolderSelect=$id('set-folder-select');
+    confirmCreateSetBtn=$id('confirm-create-set-btn'); cancelCreateSetBtn=$id('cancel-create-set-btn'); createSetCloseBtn = $id('create-set-close'); createSetBtn = $id('create-set-btn');
+
+    inlineNewFolderBtn=$id('inline-new-folder-btn');
+    inlineFolderModal=$id('inline-folder-modal'); inlineFolderName=$id('inline-folder-name'); inlineFolderDesc=$id('inline-folder-desc');
+    inlineFolderNext=$id('inline-folder-next'); inlineFolderCancel=$id('inline-folder-cancel'); inlineFolderClose=$id('inline-folder-close');
+    inlineNewFolderPending=$id('inline-new-folder-pending');
+
+    createFolderModal=$id('create-folder-modal'); newFolderNameInput=$id('new-folder-name-input'); newFolderDescInput=$id('new-folder-desc-input');
+    confirmCreateFolderBtn=$id('confirm-create-folder-btn'); cancelCreateFolderBtn=$id('cancel-create-folder-btn'); createFolderCloseBtn=$id('create-folder-close'); createFolderBtn=$id('create-folder-btn');
+
+    moveSetModal=$id('move-set-modal'); moveFolderSelect=$id('move-folder-select');
+    moveNewFolderBtn=$id('move-new-folder-btn'); moveSetClose=$id('move-set-close'); moveSetCancel=$id('move-set-cancel'); moveSetConfirm=$id('move-set-confirm');
+
+    addTermModal=$id('add-term-modal'); newTermInput=$id('new-term-input'); newDefinitionInput=$id('new-definition-input');
+    confirmAddTermBtn=$id('confirm-add-term-btn'); confirmAddTermGeminiBtn=$id('confirm-add-term-gemini-btn'); cancelAddTermBtn=$id('cancel-add-term-btn'); addTermCloseBtn=$id('add-term-close');
+
+    editTermModal=$id('edit-term-modal'); editTermInput=$id('edit-term-input'); editDefinitionInput=$id('edit-definition-input');
+    confirmEditTermBtn=$id('confirm-edit-term-btn'); cancelEditTermBtn=$id('cancel-edit-term-btn'); editTermCloseBtn=$id('edit-term-close');
+
+    homeBtn=$id('home-btn'); addTermBtn=$id('add-term-btn'); bulkDeleteBtn=$id('bulk-delete-btn'); importBtn=$id('import-btn');
+
+    setTitle=$id('set-title'); modeButtons=document.querySelectorAll('.mode-btn'); modeContainers=document.querySelectorAll('.mode-container'); bottomControls=document.querySelector('.bottom-controls');
+    flashcard=$id('flashcard'); cardFront=document.querySelector('.card-front'); cardBack=document.querySelector('.card-back');
+
+    prevBtn=$id('prev-btn'); nextBtn=$id('next-btn'); cardCounter=$id('card-counter'); shuffleBtn=$id('shuffle-btn'); trackProgressToggle=$id('track-progress-toggle');
+    progressButtons=$id('progress-buttons'); unknownBtn=$id('unknown-btn'); knownBtn=$id('known-btn');
+
+    learnModeContainer=$id('learn-mode'); overviewModeContainer=$id('overview-mode');
+
+    infoModal=$id('info-modal'); infoTitle=$id('info-modal-title'); infoBody=$id('info-modal-body'); infoClose=$id('info-modal-close'); infoOk=$id('info-modal-ok');
+
+    confirmModal=$id('confirm-modal'); confirmTitle=$id('confirm-modal-title'); confirmBody=$id('confirm-modal-body');
+    confirmClose=$id('confirm-modal-close'); confirmCancel=$id('confirm-modal-cancel'); confirmConfirm=$id('confirm-modal-confirm'); confirmAlt=$id('confirm-modal-alt');
+
+    importModal=$id('import-modal'); importClose=$id('import-close'); importDropzone=$id('import-dropzone'); importFileInput=$id('import-file-input');
+    importFileName=$id('import-file-name'); importInstructions=$id('import-instructions'); importSizeWarn=$id('import-size-warn');
+    importCancel=$id('import-cancel'); importGenerate=$id('import-generate'); importGenerateUpdate=$id('import-generate-update');
+
+    testContentWrapper=$id('test-content-wrapper'); toastStack=$id('toast-stack');
+
+    refreshBtn=$id('refresh-btn'); refreshIcon=$id('refresh-icon'); dashboardTitle=$id('dashboard-title');
+    breadcrumb=$id('breadcrumb'); breadcrumbRoot=$id('breadcrumb-root'); breadcrumbFolderName=$id('breadcrumb-folder-name');
+    createFolderHdrBtn=$id('create-folder-btn');
+
+    insertImageModal=$id('insert-image-modal'); insertImageUrl=$id('insert-image-url');
+    insertImageClose=$id('insert-image-close'); insertImageCancel=$id('insert-image-cancel'); insertImageConfirm=$id('insert-image-confirm');
+    driveImageBtn = $id('study-guide-drive-image-btn');
+    driveImageOptionsModal = $id('drive-image-options-modal');
+    driveImageOptionsClose = $id('drive-image-options-close');
+    driveImageOptionsCancel = $id('drive-image-options-cancel');
+    driveImageOptionsConfirm = $id('drive-image-options-confirm');
+    driveImageWidth = $id('drive-image-width');
+    driveImageHeight = $id('drive-image-height');
+
+    targetedEditModal=$id('targeted-edit-modal'); targetedEditClose=$id('targeted-edit-close'); targetedEditCancel=$id('targeted-edit-cancel');
+    targetedEditSubmit=$id('targeted-edit-submit'); targetedEditInstructions=$id('targeted-edit-instructions');
+  }
+
+  function safeOn(el, ev, fn){ if(!el){ console.warn('Missing node for event', ev); return; } el.addEventListener(ev, fn); }
+
+  function setupEvents(){
+    if(eventsBound){ log('Events already bound — skipping'); return; }
+    eventsBound = true;
+    log('Binding events…');
+
+    // Dashboard header buttons
+    safeOn(refreshBtn,'click', ()=> refreshDashboard(false));
+    safeOn(createSetBtn, 'click', ()=>{
+      createSetModal?.classList.remove('hidden');
+      populateFolderSelect(setFolderSelect, true, currentFolderId || '');
+      inlineNewFolderPending.classList.add('hidden');
+      pendingInlineFolder = null;
+      newSetNameInput?.focus();
+    });
+
+    safeOn(createFolderHdrBtn,'click', openCreateFolderModal);
+    safeOn(cancelCreateFolderBtn,'click', closeCreateFolderModal);
+    safeOn(createFolderCloseBtn,'click', closeCreateFolderModal);
+    safeOn(confirmCreateFolderBtn,'click', ()=>{
+      const name = (newFolderNameInput?.value||'').trim();
+      const desc = (newFolderDescInput?.value||'').trim();
+      if(!name){ showInfo('Missing name','<p>Please enter a folder name.</p>'); return; }
+      const t = toast({message:'Creating folder…', spinner:true, ttl:0});
+      google.script.run
+        .withSuccessHandler(res=>{
+          if(res?.error){ t.done(false,'Failed to create.'); return; }
+          closeCreateFolderModal();
+          refreshDashboard(false);
+          t.done(true,'Folder created.');
+        })
+        .withFailureHandler(err=>{ console.error('createFolder failed', err); t.done(false,'Failed to create folder.'); })
+        .createFolder(name, desc);
+    });
+
+    // Breadcrumb
+    safeOn(breadcrumbRoot,'click', ()=>{
+      currentFolderId = null; refreshDashboard(false);
+    });
+
+    // Create set modal controls
+    safeOn(cancelCreateSetBtn,'click', ()=> createSetModal?.classList.add('hidden'));
+    safeOn(createSetCloseBtn,'click', ()=> createSetModal?.classList.add('hidden'));
+    safeOn(inlineNewFolderBtn,'click', ()=>{
+      inlineFolderModal.classList.remove('hidden');
+      inlineFolderName.value=''; inlineFolderDesc.value='';
+    });
+    safeOn(inlineFolderCancel,'click', ()=> inlineFolderModal.classList.add('hidden'));
+    safeOn(inlineFolderClose,'click', ()=> inlineFolderModal.classList.add('hidden'));
+    safeOn(inlineFolderNext,'click', ()=>{
+      const name = (inlineFolderName?.value||'').trim();
+      const desc = (inlineFolderDesc?.value||'').trim();
+      if(!name){ showInfo('Missing name','<p>Please enter a folder name.</p>'); return; }
+      pendingInlineFolder = {name, description: desc};
+      inlineFolderModal.classList.add('hidden');  // "Next" closes just this modal
+      inlineNewFolderPending.textContent = `New folder selected: “${name}” (will be created when you create the set)`;
+      inlineNewFolderPending.classList.remove('hidden');
+      // select it in dropdown (temporary id marker)
+      populateFolderSelect(setFolderSelect, true, '__PENDING__');
+      const opt = document.createElement('option'); opt.value='__PENDING__'; opt.textContent = name;
+      setFolderSelect.appendChild(opt);
+      setFolderSelect.value='__PENDING__';
+    });
+
+    safeOn(confirmCreateSetBtn,'click', async ()=>{
+      const name = (newSetNameInput?.value||'').trim();
+      if(!name){ showInfo('Missing name','<p>Please enter a set name.</p>'); return; }
+      const sel = setFolderSelect?.value || '';
+      const t = toast({message:'Creating set…', spinner:true, ttl:0});
+      log('Create set start', { name, sel });
+
+      try{
+        let folderId = '';
+        if(sel==='__PENDING__' && pendingInlineFolder){
+          const created = await new Promise((resolve,reject)=>{
+            google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)
+              .createFolder(pendingInlineFolder.name, pendingInlineFolder.description||'');
+          });
+          if(created?.error) throw new Error(created.error);
+          folderId = created.id;
+        }else{
+          folderId = sel || '';
+        }
+
+        const newSet = await new Promise((resolve,reject)=>{
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).createSet(name, folderId);
+        });
+        if(newSet?.error) throw new Error(newSet.error);
+
+        createSetModal?.classList.add('hidden');
+        if(newSetNameInput) newSetNameInput.value='';
+        pendingInlineFolder = null;
+        inlineNewFolderPending.classList.add('hidden');
+        await refreshDashboard(false);
+        t.done(true,'Created.');
+      }catch(err){
+        console.error('Create set failed', err);
+        t.done(false,'Failed to create set.');
+      }
+    });
+
+    // Move Set modal controls
+    safeOn(moveSetClose,'click', ()=> moveSetModal.classList.add('hidden'));
+    safeOn(moveSetCancel,'click', ()=> moveSetModal.classList.add('hidden'));
+    safeOn(moveNewFolderBtn,'click', ()=>{
+      // quick inline create inside move modal
+      inlineFolderModal.classList.remove('hidden');
+      inlineFolderName.value=''; inlineFolderDesc.value='';
+      inlineFolderNext.onclick = async ()=>{
+        const name = (inlineFolderName?.value||'').trim();
+        const desc = (inlineFolderDesc?.value||'').trim();
+        if(!name){ showInfo('Missing name','<p>Please enter a folder name.</p>'); return; }
+        try{
+          const created = await new Promise((resolve,reject)=>{
+            google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).createFolder(name, desc);
+          });
+          if(created?.error) throw new Error(created.error);
+          inlineFolderModal.classList.add('hidden');
+          await refreshDashboard(false);
+          populateFolderSelect(moveFolderSelect, true, created.id);
+        }catch(e){
+          showInfo('Error','<p>Could not create folder.</p>');
+        }
+      };
+    });
+    safeOn(moveSetConfirm,'click', async ()=>{
+      const setId = moveSetModal.dataset.setId;
+      const dest = moveFolderSelect.value || '';
+      const t = toast({message:'Moving set…', spinner:true, ttl:0});
+      try{
+        const res = await new Promise((resolve,reject)=>{
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).moveSet(setId, dest);
+        });
+        if(res?.error) throw new Error(res.error);
+        moveSetModal.classList.add('hidden');
+        await refreshDashboard(false);
+        t.done(true,'Moved.');
+      }catch(e){
+        t.done(false,'Move failed.');
+      }
+    });
+
+    // Study header
+    safeOn(homeBtn,'click', ()=>{ showLoader('Loading…'); showView('dashboard'); refreshDashboard(true); });
+    safeOn(addTermBtn,'click', ()=> addTermModal?.classList.remove('hidden'));
+    safeOn(addTermCloseBtn,'click', ()=> addTermModal?.classList.add('hidden'));
+    safeOn(cancelAddTermBtn,'click', ()=> addTermModal?.classList.add('hidden'));
+    safeOn(bulkDeleteBtn,'click', ()=>{
+      bulkMode = true;
+      bulkSelectedUUIDs.clear();
+      renderOverview();
+    });
+
+    // Mode selector
+    safeOn($id('mode-selector'), 'click', (e)=>{
+      const btn = e.target.closest('.mode-btn');
+      if (btn?.dataset?.mode) {
+        switchMode(btn.dataset.mode);
+      }
+    });
+
+    // Import modal open
+    safeOn(importBtn,'click', ()=>{ importModal?.classList.remove('hidden'); importSizeWarn.classList.add('hidden'); importFileName.textContent=''; importFileInput.value=''; });
+
+    // Info modal close buttons
+    safeOn(infoClose, 'click', hideInfo);
+    safeOn(infoOk, 'click', hideInfo);
+
+    // ===== CONTINUATION / NEW EVENT BINDINGS =====
+    // Import modal events
+    safeOn(importClose,'click', ()=> importModal?.classList.add('hidden'));
+    safeOn(importCancel,'click', ()=> importModal?.classList.add('hidden'));
+    safeOn(importDropzone,'click', ()=> importFileInput?.click());
+    safeOn(importFileInput,'change', ()=>{
+      const f = importFileInput?.files?.[0];
+      importFileName.textContent = f ? f.name : '';
+    });
+    ['dragover','dragenter'].forEach(ev=>{
+      safeOn(importDropzone, ev, (e)=>{ e.preventDefault(); importDropzone.classList.add('ring-2','ring-indigo-400'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      safeOn(importDropzone, ev, (e)=>{
+        e.preventDefault();
+        importDropzone.classList.remove('ring-2','ring-indigo-400');
+        if(ev==='drop'){
+          const dt = e.dataTransfer;
+          if(dt?.files?.length){
+            importFileInput.files = dt.files;
+            importFileName.textContent = dt.files[0].name;
+          }
+        }
+      });
+    });
+    safeOn(importGenerate,'click', ()=> handleImport(false));
+    safeOn(importGenerateUpdate,'click', ()=> handleImport(true));
+
+    // Insert Image modal
+    safeOn(insertImageClose,'click', ()=> insertImageModal?.classList.add('hidden'));
+    safeOn(insertImageCancel,'click', ()=> insertImageModal?.classList.add('hidden'));
+    safeOn(insertImageConfirm,'click', ()=>{
+      const url = (insertImageUrl?.value||'').trim();
+      if(!url){ showInfo('Missing URL','<p>Please paste an image URL.</p>'); return; }
+
+      const width = ($id('insert-image-width')?.value || '').trim();
+      const height = ($id('insert-image-height')?.value || '').trim();
+
+      insertImageIntoGuide(url, width, height);
+
+      insertImageModal?.classList.add('hidden');
+      insertImageUrl.value='';
+      $id('insert-image-width').value = '';
+      $id('insert-image-height').value = '';
+
+      toast({message: 'Image inserted. Click "Save Guide" to make it permanent.', ttl: 5000});
+    });
+
+    // Drive Image Modal Events
+    safeOn(driveImageOptionsClose, 'click', () => driveImageOptionsModal.classList.add('hidden'));
+    safeOn(driveImageOptionsCancel, 'click', () => driveImageOptionsModal.classList.add('hidden'));
+    safeOn(driveImageOptionsConfirm, 'click', () => {
+      const width = (driveImageWidth?.value || '').trim();
+      const height = (driveImageHeight?.value || '').trim();
+
+      pendingDriveImageUrls.forEach(url => {
+        insertImageIntoGuide(url, width, height);
+      });
+
+      // Clean up
+      pendingDriveImageUrls = [];
+      driveImageOptionsModal.classList.add('hidden');
+      driveImageWidth.value = '';
+      driveImageHeight.value = '';
+      toast({message: 'Drive image(s) inserted. Click "Save Guide" to make them permanent.', ttl: 5000});
+    });
+
+    // Update toolbar UI and save caret position on selection change
+    document.addEventListener('selectionchange', () => {
+        const guide = $id('study-guide-content-overview');
+        if (!guide) return;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+
+        const r = sel.getRangeAt(0);
+        // Only act if the selection is within the study guide editor
+        if (!guide.contains(r.startContainer)) return;
+
+        // 1. Save the range for later use (e.g., inserting an image)
+        savedGuideRange = r.cloneRange();
+
+        // 2. Update the toolbar UI to reflect the current selection's style
+        const toolbar = $id('study-guide-toolbar');
+        if (toolbar.classList.contains('hidden')) return; // Don't update if not visible
+
+        let container = r.startContainer;
+        if (container.nodeType === 3) { // If it's a text node, get the parent element
+            container = container.parentNode;
+        }
+
+        // Update font size dropdown
+        const fontSizeSelect = toolbar.querySelector('select[data-command="fontSize"]');
+        if (fontSizeSelect) {
+            const sizeSpan = container.closest('span[style*="font-size"]');
+            fontSizeSelect.value = sizeSpan ? sizeSpan.style.fontSize : '14px';
+        }
+
+        // Update font family dropdown
+        const fontFamilySelect = toolbar.querySelector('select[data-command="fontName"]');
+        if (fontFamilySelect) {
+            const fontFaceElement = container.closest('font[face]');
+            if (fontFaceElement) {
+                const face = fontFaceElement.getAttribute('face').toLowerCase();
+                const matchingOption = Array.from(fontFamilySelect.options).find(opt => opt.value.toLowerCase().includes(face));
+                fontFamilySelect.value = matchingOption ? matchingOption.value : 'Inter, sans-serif';
+            } else {
+                fontFamilySelect.value = 'Inter, sans-serif';
+            }
+        }
+    });
+
+    // Flashcards
+    safeOn(flashcard, 'click', (e)=> {
+        if (e.target.closest('.icon-btn')) return; // ignore clicks on buttons
+        flashcard.classList.toggle('is-flipped')
+    });
+    safeOn(prevBtn, 'click', prevCard);
+    safeOn(nextBtn, 'click', nextCard);
+    safeOn(shuffleBtn, 'click', shuffleDeck);
+    safeOn(unknownBtn, 'click', ()=> markCard(false));
+    safeOn(knownBtn, 'click', ()=> markCard(true));
+    safeOn(trackProgressToggle,'change', ()=>{
+      progressButtons?.classList.toggle('hidden', !trackProgressToggle.checked);
+    });
+
+    // Edit Term Modal
+    safeOn($id('flashcard-edit-btn'), 'click', () => openEditModal());
+    safeOn($id('flashcard-edit-btn-back'), 'click', () => openEditModal());
+    safeOn(editTermCloseBtn, 'click', () => editTermModal.classList.add('hidden'));
+    safeOn(cancelEditTermBtn, 'click', () => editTermModal.classList.add('hidden'));
+    safeOn(confirmEditTermBtn, 'click', () => saveFlashcardEdit());
+    safeOn($id('flashcard-hint-btn'), 'click', (e) => { e.stopPropagation(); getHint(); });
+    function handleStarClick() {
+        if (activeCardDeck.length === 0) return;
+        const card = activeCardDeck[currentCardIndex];
+        const newState = toggleStar({ uuid: card.uuid });
+
+        if (typeof newState === 'boolean') {
+            const iconFront = $id('flashcard-star-btn').querySelector('i');
+            const iconBack = $id('flashcard-star-btn-back').querySelector('i');
+            iconFront.classList.toggle('starred', newState);
+            iconBack.classList.toggle('starred', newState);
+        }
+    }
+    safeOn($id('flashcard-star-btn'), 'click', handleStarClick);
+    safeOn($id('flashcard-star-btn-back'), 'click', handleStarClick);
+
+    document.querySelectorAll('.rte-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const command = btn.dataset.command;
+            const value = btn.dataset.value || null;
+            document.execCommand(command, false, value);
+        });
+    });
+
+    // Add Term modal actions
+    safeOn(confirmAddTermBtn,'click', ()=>{
+      const term = (newTermInput?.value||'').trim();
+      const def  = (newDefinitionInput?.value||'').trim();
+      if(!term || !def){ showInfo('Missing info','<p>Please enter both term and definition.</p>'); return; }
+      const t = toast({message:'Saving term…', spinner:true, ttl:0});
+      google.script.run
+        .withSuccessHandler(res=>{
+          if(res?.error){ t.done(false,'Failed to save.'); return; }
+          addTermModal?.classList.add('hidden');
+          newTermInput.value=''; newDefinitionInput.value='';
+          loadSet(currentSetId, currentSetName);
+          t.done(true,'Term added.');
+        })
+        .withFailureHandler(err=>{ console.error('Add term failed', err); t.done(false,'Failed to save.'); })
+        .addTerms(currentSetId, [{term, definition: def}]);
+    });
+    safeOn(confirmAddTermGeminiBtn,'click', ()=>{
+      const term = (newTermInput?.value||'').trim();
+      const def  = (newDefinitionInput?.value||'').trim();
+      if(!term || !def){ showInfo('Missing info','<p>Please enter both term and definition.</p>'); return; }
+      const t = toast({message:'Saving & updating guide with Gemini…', spinner:true, ttl:0});
+      google.script.run
+        .withSuccessHandler(res=>{
+          if(res?.error){ t.done(false, res.error); return; }
+          addTermModal?.classList.add('hidden');
+          newTermInput.value=''; newDefinitionInput.value='';
+          loadSet(currentSetId, currentSetName);
+          t.done(true,'Term added & guide updated.');
+        })
+        .withFailureHandler(err=>{
+          const msg = err.message || 'Failed.';
+          console.error('Add term+Gemini failed', err);
+          t.done(false, msg);
+        })
+        .addTermAndUpdateGuideGemini(currentSetId, term, def);
+    });
+
+    // Overview row actions (delegated) & RTE Toolbar
+    safeOn(overviewModeContainer, 'click', (e)=>{
+      // Handle RTE Toolbar buttons first
+      const rteBtn = e.target.closest('#study-guide-toolbar button');
+      if (rteBtn) {
+          e.preventDefault();
+          const editor = $id('study-guide-content-overview');
+          const command = rteBtn.dataset.command;
+          let value = rteBtn.dataset.value;
+
+          if (rteBtn.id === 'study-guide-drive-image-btn') {
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0) {
+                  const r = sel.getRangeAt(0);
+                  savedGuideRange = editor && editor.contains(r.startContainer) ? r.cloneRange() : null;
+              } else {
+                  savedGuideRange = null;
+              }
+              openDrivePicker();
+              return;
+          }
+
+          if (rteBtn.id === 'study-guide-rte-image-btn') {
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0) {
+                  const r = sel.getRangeAt(0);
+                  savedGuideRange = editor && editor.contains(r.startContainer) ? r.cloneRange() : null;
+              } else {
+                  savedGuideRange = null;
+              }
+              insertImageModal?.classList.remove('hidden');
+              insertImageUrl?.focus();
+              return;
+          }
+
+          if (command === 'createLink') {
+            const url = prompt('Enter the URL:');
+            if (url) document.execCommand('createLink', false, url);
+          } else if (command === 'foreColor' || command === 'backColor') {
+            const color = prompt('Enter a color value (e.g., #FF0000 or red):');
+            if (color) document.execCommand(command, false, color);
+          } else if (command === 'insertOrderedList' || command === 'insertUnorderedList') {
+            document.execCommand(command, false, null);
+          } else if (command) {
+            document.execCommand(command, false, null);
+          }
+
+          editor?.focus();
+          return;
+      }
+
+      // Then handle overview row actions
+      const starBtn = e.target.closest('[data-action="star"]');
+      const editBtn = e.target.closest('[data-action="edit"]');
+      const saveBtn = e.target.closest('[data-action="save"]');
+      const delBtn  = e.target.closest('[data-action="delete"]');
+      const expBtn  = e.target.closest('[data-action="explain"]');
+      const rowEl   = e.target.closest('.overview-term-row');
+
+      if(!rowEl) return;
+      const uuid = rowEl.dataset.uuid || '';
+      const rowId = parseInt(rowEl.dataset.rowId || '0', 10) || null;
+
+      if(starBtn){
+        const newState = toggleStar({ uuid: uuid || null, rowId: rowId });
+        if (typeof newState === 'boolean') {
+          starBtn.querySelector('i').classList.toggle('starred', newState);
+        }
+        return;
+      }
+      if(editBtn){
+        enterEditRow(rowEl, uuid);
+        return;
+      }
+      if(saveBtn){
+        saveEditRow(rowEl, uuid);
+        return;
+      }
+      if(delBtn){
+        const termLabel = rowEl.querySelector('.overview-term-term .term-text')?.textContent || 'term';
+        confirmDeleteTerm(uuid, termLabel);
+        return;
+      }
+      if(expBtn){
+        const term = rowEl.dataset.term; const def = rowEl.dataset.def;
+        handleExplainSimply(term, def);
+        return;
+      }
+    });
+
+    safeOn(overviewModeContainer, 'change', e => {
+        const select = e.target.closest('#study-guide-toolbar select');
+        if (!select) return;
+
+        e.preventDefault();
+        const editor = $id('study-guide-content-overview');
+        if (!editor) return;
+
+        editor.focus(); // Ensure the editor has focus before we execute commands
+
+        const command = select.dataset.command;
+        const value = select.value;
+
+        if (command === 'fontSize') {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+
+                if (range.collapsed) {
+                    // For typing new text, insert a span to type into.
+                    const span = document.createElement('span');
+                    span.style.fontSize = value;
+                    span.innerHTML = '&#8203;'; // Zero-width space to act as a cursor anchor
+                    range.insertNode(span);
+                    // Move cursor inside the new span
+                    range.selectNodeContents(span);
+                    selection.collapseToEnd();
+                } else {
+                    // For existing text, use the font-tag replacement trick to avoid nested spans.
+                    document.execCommand('fontSize', false, '1'); // Use a placeholder size that creates <font> tags.
+                    const fontElements = editor.getElementsByTagName('font');
+                    while(fontElements.length) {
+                        const span = document.createElement('span');
+                        span.style.fontSize = value;
+                        span.innerHTML = fontElements[0].innerHTML;
+                        fontElements[0].parentNode.replaceChild(span, fontElements[0]);
+                    }
+                }
+            }
+        } else if (command === 'fontName') {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const span = document.createElement('span');
+                span.style.fontFamily = value;
+
+                if (range.collapsed) {
+                    span.innerHTML = '&#8203;'; // Zero-width space for typing
+                    range.insertNode(span);
+                    // Move cursor inside the new span
+                    range.selectNodeContents(span);
+                    selection.collapseToEnd();
+                } else {
+                    span.appendChild(range.extractContents());
+                    range.insertNode(span);
+                }
+            }
+        }
+    });
+
+    // Dashboard cards: Move/Delete Set and Delete Folder via event delegation
+    safeOn(setsGrid, 'click', (e)=>{
+      const moveBtn = e.target.closest('[data-action="move-set"]');
+      const delBtn  = e.target.closest('[data-action="delete-set"]');
+      const delFolderBtn = e.target.closest('[data-action="delete-folder"]');
+      if(moveBtn){
+        const setId = moveBtn.dataset.setId;
+        openMoveSetModal(setId);
+        e.stopPropagation();
+      }else if(delBtn){
+        const setId = delBtn.dataset.setId;
+        const setName = delBtn.dataset.setName || 'this set';
+        showConfirm({
+          title:'Delete Set',
+          html:`<p>Delete <strong>${escapeHTML(setName)}</strong> and all its terms?</p>`,
+          confirmText:'Delete',
+          onConfirm: ()=>{
+            const t = toast({message:'Deleting set…', spinner:true, ttl:0});
+            google.script.run
+              .withSuccessHandler(res=>{
+                if(res?.error){ t.done(false,'Failed to delete.'); return; }
+                refreshDashboard(false);
+                t.done(true,'Set deleted.');
+              })
+              .withFailureHandler(err=>{ console.error('Delete set failed', err); t.done(false,'Failed.'); })
+              .deleteSet(setId);
+          }
+        });
+        e.stopPropagation();
+      }else if(delFolderBtn){
+        const folderId = delFolderBtn.dataset.folderId;
+        showConfirm({
+          title:'Delete Folder',
+          html:'<p>Delete this folder? Sets inside will not be deleted; they will move to root.</p>',
+          confirmText:'Delete',
+          onConfirm: ()=>{
+            const t = toast({message:'Deleting folder…', spinner:true, ttl:0});
+            google.script.run
+              .withSuccessHandler(res=>{
+                if(res?.error){ t.done(false,'Failed to delete.'); return; }
+                if(currentFolderId === folderId) currentFolderId = null;
+                refreshDashboard(false);
+                t.done(true,'Folder deleted.');
+              })
+              .withFailureHandler(err=>{ console.error('Delete folder failed', err); t.done(false,'Failed.'); })
+              .deleteFolder(folderId);
+          }
+        });
+        e.stopPropagation();
+      }
+    });
+
+  } // end setupEvents
+
+  // Insert image helper
+  function insertImageIntoGuide(url, width, height){
+    const guide = $id('study-guide-content-overview');
+    if(!guide) return;
+    guide.focus();
+
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = 'User-inserted image';
+    img.style.maxWidth = '100%';
+    if (width) img.style.width = width;
+    if (height) {
+      img.style.height = height;
+    } else {
+      img.style.height = 'auto';
+    }
+    img.loading = 'lazy';
+
+    const r = savedGuideRange;
+    if(r){
+      const range = r.cloneRange();
+      range.collapse(true);
+      range.insertNode(img);
+      // place caret after image
+      range.setStartAfter(img);
+      range.setEndAfter(img);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      savedGuideRange = range.cloneRange();
+    }else{
+      // append at end
+      guide.appendChild(img);
+    }
+  }
+
+  // On load
+  document.addEventListener('DOMContentLoaded', ()=>{
+    assignDOMElements();
+    setupEvents();
+    showView('dashboard');
+    window.renderDashboard = renderDashboard;
+    window.showView = showView;
+    window.loadSet = loadSet;
+    window.refreshDashboard = refreshDashboard;
+  });
+  </script>
+
+  <script src="https://apis.google.com/js/api.js" async defer onload="this.onload=function(){};handleClientLoad()" onreadystatechange="if (this.readyState === 'complete') this.onload()"></script>
+</body>
+</html>
