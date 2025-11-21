@@ -1,0 +1,784 @@
+// =========================
+// Google Apps Script Backend
+// =========================
+
+const SPREADSHEET_ID = 'Paste-Here';
+const GEMINI_API_KEY = 'Paste-Here';
+
+// --- Google Picker API Credentials ---
+// IMPORTANT: Replace with your own API Key and App ID (Project Number) from your Google Cloud Platform project.
+const DEVELOPER_KEY = 'Paste-Here';
+const APP_ID = 'Paste-Here';
+
+function doGet() {
+  const template = HtmlService.createTemplateFromFile('Index');
+  template.DEVELOPER_KEY = DEVELOPER_KEY;
+  template.APP_ID = APP_ID;
+  return template.evaluate()
+    .setTitle('Flashcard Study App')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ---------- Logging helper ----------
+const logger = {
+  log: function(level, message, data) {
+    try {
+      let logEntry = `[StudyApp] [${level}] ${message}`;
+      if (data !== undefined) {
+        // In Google Apps Script, console.log can handle objects, but let's be explicit for clarity
+        // and robustness, especially if logs were ever redirected to a text-based system.
+        if (typeof data === 'object' && data !== null) {
+          // Using JSON.stringify for a consistent, readable format in the logs.
+          // The null, 2 arguments pretty-print the JSON.
+          logEntry += `\n${JSON.stringify(data, null, 2)}`;
+        } else {
+          logEntry += ` | ${data}`;
+        }
+      }
+      console.log(logEntry);
+    } catch (e) {
+      // Fallback for any logging errors
+      console.log('[StudyApp] [FATAL] Logging system failed.', e.toString());
+    }
+  },
+  info: function(message, data) { this.log('INFO', message, data); },
+  warn: function(message, data) { this.log('WARN', message, data); },
+  error: function(message, error) {
+    // Specifically for errors, we want to capture the message, stack trace, and any additional data.
+    let errorData = {};
+    if (error instanceof Error) {
+      errorData.name = error.name;
+      errorData.message = error.message;
+      errorData.stack = error.stack;
+    } else if (typeof error === 'object' && error !== null) {
+      // If it's an object but not an Error instance, merge it.
+      errorData = { ...errorData, ...error };
+    } else if (error !== undefined) {
+      errorData.details = error;
+    }
+    this.log('ERROR', message, errorData);
+  }
+};
+
+// ------------- Sheets helpers -------------
+function _ss() { return SpreadsheetApp.openById(SPREADSHEET_ID); }
+function _setsSheet() { return _ss().getSheetByName('Sets'); }
+function _termsSheet() { return _ss().getSheetByName('Terms'); }
+function _foldersSheet() { return _ss().getSheetByName('Folders'); }
+
+// Ensure schema (optional but helpful if you’re starting fresh)
+function ensureSchema(){
+  const ss = _ss();
+  if(!_foldersSheet()){ ss.insertSheet('Folders').getRange(1,1,1,3).setValues([['Name','FolderID','Description']]); }
+  if(!_setsSheet()){ ss.insertSheet('Sets').getRange(1,1,1,4).setValues([['Name','SetID','StudyGuideHTML','FolderID']]); }
+  if(!_termsSheet()){ ss.insertSheet('Terms').getRange(1,1,1,7).setValues([['SetID','Term','Definition','Status','Starred','CorrectInARow','UUID']]); }
+}
+
+// ------------- Utility lookups -------------
+function _getAllTermsRows_(){ const sh=_termsSheet(); return sh ? sh.getDataRange().getValues() : [[]]; }
+function _findTermRowByUUID(uuid){
+  if(!uuid) return -1;
+  const vals = _getAllTermsRows_();
+  for(let i=1;i<vals.length;i++){ if(String(vals[i][6])===String(uuid)) return i+1; }
+  return -1;
+}
+function _rowFromRowOrUuid(rowOrUuid){
+  if(typeof rowOrUuid==='number') return rowOrUuid;
+  const n = Number(rowOrUuid);
+  if(!isNaN(n) && isFinite(n)) return n;
+  return _findTermRowByUUID(String(rowOrUuid));
+}
+
+// ------------- Folders -------------
+function listFolders(){
+  try{
+    const sh = _foldersSheet(); if(!sh || sh.getLastRow()<2) return [];
+    const vals = sh.getRange(2,1,sh.getLastRow()-1,3).getValues();
+    return vals.filter(r=>r[0] && r[1]).map(r=>({ name:r[0], id:r[1], description:r[2]||'' }));
+  }catch(e){ logger.error('listFolders fail', e); return { error:'Could not list folders.' }; }
+}
+function createFolder(name, description){
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try{
+    const sh = _foldersSheet(); if(!sh) throw new Error('Folders sheet missing.');
+    const id = `folder_${Date.now()}`;
+    sh.appendRow([name, id, description||'']);
+    SpreadsheetApp.flush();
+    logger.info('createFolder OK', { id });
+    return { id, name, description: description||'' };
+  }catch(e){ logger.error('createFolder fail', e); return { error:'Failed to create folder.' }; }
+  finally{ lock.releaseLock(); }
+}
+function deleteFolder(folderId){
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try{
+    const foldersSheet = _foldersSheet();
+    if(!foldersSheet) throw new Error('Folders sheet missing.');
+    const setsSheet = _setsSheet();
+
+    // More efficient: find affected sets first, then update only them.
+    if(setsSheet){
+      const svals = setsSheet.getDataRange().getValues();
+      const rowsToClear = [];
+      for(let i=1; i < svals.length; i++){
+        if(svals[i][3] === folderId){
+          // Get the range for the FolderID cell in this row and clear it.
+          // Doing this one-by-one is safer and often fast enough.
+          setsSheet.getRange(i + 1, 4).setValue('');
+        }
+      }
+    }
+
+    // Now, delete the folder row.
+    const fvals = foldersSheet.getDataRange().getValues();
+    // Iterate backwards to safely delete.
+    for(let i = fvals.length - 1; i >= 1; i--){
+      if(fvals[i][1] === folderId){
+        foldersSheet.deleteRow(i + 1);
+        // Assuming folderIds are unique, we can break after finding it.
+        break;
+      }
+    }
+
+    SpreadsheetApp.flush();
+    logger.info('deleteFolder OK', { folderId });
+    return { success:true };
+  }catch(e){ logger.error('deleteFolder fail', e); return { error:'Failed to delete folder.' }; }
+  finally{ lock.releaseLock(); }
+}
+function moveSet(setId, destFolderId){
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try{
+    const sets = _setsSheet(); if(!sets) throw new Error('Sets sheet missing.');
+    const vals = sets.getDataRange().getValues();
+    for(let i=1;i<vals.length;i++){
+      if(vals[i][1]===setId){ sets.getRange(i+1,4).setValue(destFolderId||''); break; }
+    }
+    SpreadsheetApp.flush();
+    return { success:true };
+  }catch(e){ logger.error('moveSet fail', e); return { error:'Failed to move set.' }; }
+  finally{ lock.releaseLock(); }
+}
+
+// ------------- Sets -------------
+function listSets() {
+  try {
+    const sh = _setsSheet();
+    if (!sh || sh.getLastRow() < 2) return [];
+    // expect up to 4 columns (Name,SetID,StudyGuideHTML,FolderID)
+    const values = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+    const out = values
+      .map(r => ({ name: r[0], id: r[1], folderId: r[3] || '' }))
+      .filter(x => x.name && x.id);
+    logger.info('listSets OK', { count: out.length });
+    return out;
+  } catch (e) {
+    logger.error('listSets fail', e);
+    return { error: 'Could not list sets. Ensure "Sets" exists.' };
+  }
+}
+
+function listFoldersAndSets(){
+  try{
+    const folders = listFolders();
+    if(folders?.error) throw new Error(folders.error);
+    const sets = listSets();
+    if(sets?.error) throw new Error(sets.error);
+    return { folders, sets };
+  }catch(e){ logger.error('listFoldersAndSets fail', e); return { error:'Could not list folders and sets.'}; }
+}
+
+function createSet(setName, folderId) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('createSet start', { setName, folderId });
+  try {
+    const sh = _setsSheet();
+    if (!sh) throw new Error('Sets sheet missing.');
+    const newId = `set_${Date.now()}`;
+    // ensure we have at least 4 columns
+    sh.appendRow([setName, newId, '', folderId||'']);
+    SpreadsheetApp.flush();
+    logger.info('createSet OK', { id: newId });
+    return { name: setName, id: newId, folderId: folderId||'' };
+  } catch (e) {
+    logger.error('createSet fail', e);
+    return { error: 'Failed to create new set.' };
+  } finally { lock.releaseLock(); }
+}
+
+function deleteSet(setId) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('deleteSet start', { setId });
+  try {
+    const sets = _setsSheet();
+    const terms = _termsSheet();
+
+    // remove from Sets
+    const svals = sets.getDataRange().getValues();
+    // Iterate backwards to safely delete rows and handle potential duplicates.
+    for (let i = svals.length - 1; i >= 1; i--) {
+      if (svals[i][1] === setId) {
+        sets.deleteRow(i + 1);
+      }
+    }
+    // remove related terms
+    const tvals = terms.getDataRange().getValues();
+    let removed=0;
+    for (let i=tvals.length-1;i>=1;i--){
+      if (tvals[i][0] === setId) { terms.deleteRow(i+1); removed++; }
+    }
+    SpreadsheetApp.flush();
+    logger.info('deleteSet OK', { setId, termsRemoved: removed });
+    return { success: true };
+  } catch (e) {
+    logger.error('deleteSet fail', e);
+    return { error: 'Failed to delete set.' };
+  } finally { lock.releaseLock(); }
+}
+
+// ------------- Terms -------------
+function getTerms(setId) {
+  logger.info('getTerms start', { setId });
+  try {
+    const sh = _termsSheet();
+    if (!sh || sh.getLastRow()<2) return [];
+    const vals = sh.getDataRange().getValues();
+    const out = [];
+    for (let i=1;i<vals.length;i++){
+      const r = vals[i];
+      if (r[0] === setId) {
+        out.push({
+          id: i+1, // row number
+          uuid: r[6] || '', // NEW
+          term: r[1],
+          definition: r[2],
+          status: r[3] || 'Not Studied',
+          starred: r[4] === true || r[4] === 'TRUE',
+          correctInARow: parseInt(r[5]) || 0
+        });
+      }
+    }
+    logger.info('getTerms OK', { setId, count: out.length });
+    return out;
+  } catch (e) {
+    logger.error('getTerms fail', e);
+    return { error: 'Could not fetch terms.' };
+  }
+}
+
+function addTerms(setId, terms) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('addTerms start', { setId, count: (terms||[]).length });
+  try {
+    const sh = _termsSheet();
+    const rows = (terms||[]).map(t => [setId, t.term, t.definition, 'Not Studied', 'FALSE', 0, Utilities.getUuid()]);
+    if (rows.length>0) {
+      sh.getRange(sh.getLastRow()+1, 1, rows.length, 7).setValues(rows);
+      SpreadsheetApp.flush();
+    }
+    logger.info('addTerms OK', { setId, added: rows.length });
+    return { success: true };
+  } catch (e) {
+    logger.error('addTerms fail', e);
+    return { error: 'Failed to add terms.' };
+  } finally { lock.releaseLock(); }
+}
+
+function deleteTerm(setId, termRowIdOrUuid) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('deleteTerm start', { setId, termRowIdOrUuid });
+  try {
+    const sh = _termsSheet();
+    const rowId = _rowFromRowOrUuid(termRowIdOrUuid);
+    const last = sh.getLastRow();
+    if (rowId<2 || rowId>last) throw new Error('Invalid row.');
+    sh.deleteRow(rowId);
+    SpreadsheetApp.flush();
+    logger.info('deleteTerm OK', { rowId });
+    return { success: true };
+  } catch (e) {
+    logger.error('deleteTerm fail', e);
+    return { error: 'Failed to delete term.' };
+  } finally { lock.releaseLock(); }
+}
+
+function deleteTermsBulk(setId, rowIdsOrUuids) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('deleteTermsBulk start', { setId, count: (rowIdsOrUuids||[]).length });
+  try {
+    const sh = _termsSheet();
+    const rows = (rowIdsOrUuids||[]).map(_rowFromRowOrUuid).filter(n=>n>=2 && n<=sh.getLastRow()).sort((a,b)=>b-a);
+    let removed = 0;
+    rows.forEach(rid=>{ sh.deleteRow(rid); removed++; });
+    SpreadsheetApp.flush();
+    logger.info('deleteTermsBulk OK', { setId, removed });
+    return { success:true, removed };
+  } catch(e){
+    logger.error('deleteTermsBulk fail', e);
+    return { error:'Bulk delete failed.' };
+  } finally { lock.releaseLock(); }
+}
+
+function updateStatus(setId, termRowIdOrUuid, isCorrect) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const sh = _termsSheet();
+    const rowId = _rowFromRowOrUuid(termRowIdOrUuid);
+    const row = sh.getRange(rowId, 1, 1, 7).getValues()[0];
+    let inARow = parseInt(row[5]) || 0;
+    if (isCorrect) inARow++; else inARow = 0;
+    let status = 'Not Studied';
+    if (inARow>=2) status='Mastered';
+    else if (inARow>0) status='Still Learning';
+    sh.getRange(rowId, 4).setValue(status);
+    sh.getRange(rowId, 6).setValue(inARow);
+    SpreadsheetApp.flush();
+    logger.info('updateStatus OK', { rowId, status, inARow });
+    return { success:true };
+  } catch (e) {
+    logger.error('updateStatus fail', e);
+    return { error: 'Could not update status.' };
+  } finally { lock.releaseLock(); }
+}
+
+function toggleStar(setId, termRowIdOrUuid, isStarred) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('toggleStar start', { setId, termRowIdOrUuid, isStarred });
+  try {
+    const sh = _termsSheet();
+    const rowId = _rowFromRowOrUuid(termRowIdOrUuid);
+    sh.getRange(rowId, 5).setValue(isStarred);
+    SpreadsheetApp.flush();
+    logger.info('toggleStar OK', { rowId, isStarred });
+    return { success:true };
+  } catch (e) {
+    logger.error('toggleStar fail', e);
+    return { error:'Could not update star.' };
+  } finally { lock.releaseLock(); }
+}
+
+// NEW: bulk star toggles — now accepts UUIDs and resolves to rows; still writes contiguous blocks
+function toggleStarsBulk(setId, items){
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('toggleStarsBulk start', { setId, count: (items||[]).length });
+  try{
+    const sh = _termsSheet();
+    const list = (items||[])
+      .map(x => ({ row: _rowFromRowOrUuid(x.termRowId||x.uuid), star: !!x.isStarred }))
+      .filter(x => x.row >= 2 && x.row <= sh.getLastRow());
+
+    let updates = 0;
+    // The previous logic for grouping contiguous rows was flawed and inefficient
+    // if rows were not perfectly sequential. Directly setting the value for each
+    // change is more reliable and often faster in practice for non-contiguous updates.
+    list.forEach(item => {
+      sh.getRange(item.row, 5).setValue(item.star);
+      updates++;
+    });
+
+    SpreadsheetApp.flush();
+    logger.info('toggleStarsBulk OK', { updates });
+    return { success:true, updates };
+  }catch(e){
+    logger.error('toggleStarsBulk fail', e);
+    return { error:'Bulk star update failed.' };
+  }finally{ lock.releaseLock(); }
+}
+
+function editTerm(setId, termRowIdOrUuid, newTerm, newDefinition) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('editTerm start', { setId, termRowIdOrUuid, newTerm, newDefinition });
+  try {
+    const sh = _termsSheet();
+    const rowId = _rowFromRowOrUuid(termRowIdOrUuid);
+    sh.getRange(rowId, 2).setValue(newTerm);
+    sh.getRange(rowId, 3).setValue(newDefinition);
+    SpreadsheetApp.flush();
+    logger.info('editTerm OK', { rowId });
+    return { success:true };
+  } catch(e){
+    logger.error('editTerm fail', e);
+    return { error:'Could not edit term.' };
+  } finally { lock.releaseLock(); }
+}
+
+// ------------- Study guide -------------
+function saveStudyGuide(setId, content) {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  logger.info('saveStudyGuide start', { setId, size: (content||'').length });
+  try {
+    const sh = _setsSheet();
+    const data = sh.getDataRange().getValues();
+    for (let i=1;i<data.length;i++){
+      if (data[i][1] === setId) {
+        sh.getRange(i+1, 3).setValue(content);
+        SpreadsheetApp.flush();
+        logger.info('saveStudyGuide OK', { setId });
+        return { success:true };
+      }
+    }
+    return { error:'Set ID not found.' };
+  } catch (e) {
+    logger.error('saveStudyGuide fail', e);
+    return { error:'Could not save study guide.' };
+  } finally { lock.releaseLock(); }
+}
+
+function loadStudyGuide(setId) {
+  logger.info('loadStudyGuide', { setId });
+  try {
+    const sh = _setsSheet();
+    const data = sh.getDataRange().getValues();
+    for (let i=1;i<data.length;i++){
+      if (data[i][1] === setId) return data[i][2] || '';
+    }
+    return '';
+  } catch (e) {
+    logger.error('loadStudyGuide fail', e);
+    return '';
+  }
+}
+
+// Function to get public URLs for multiple Drive files
+function getImageUrlsFromDrive(ids) {
+  if (!ids || !Array.isArray(ids)) {
+    logger.error('getImageUrlsFromDrive fail', { error: 'Input must be an array of file IDs.' });
+    return [{ error: 'Invalid input. Expected an array of IDs.' }];
+  }
+
+  const results = ids.map(id => {
+    try {
+      const file = DriveApp.getFileById(id);
+      // Set sharing to "anyone with the link can view"
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      // Construct the direct image URL for embedding
+      const imageUrl = `https://drive.google.com/uc?export=view&id=${id}`;
+      logger.info('getImageUrlFromDrive OK', { fileId: id });
+      return { url: imageUrl };
+    } catch (e) {
+      logger.error('getImageUrlFromDrive fail for id: ' + id, e);
+      return { error: `Failed to process image ID: ${id}` };
+    }
+  });
+
+  logger.info('getImageUrlsFromDrive batch complete', { requested: ids.length, results: results.length });
+  return results;
+}
+
+function regenerateStudyGuideFromTerms(setId, currentGuideHtml) {
+  logger.info('regenerateStudyGuideFromTerms start', { setId });
+  try {
+    const terms = getTerms(setId);
+    if (terms?.error || !Array.isArray(terms) || terms.length === 0) {
+      throw new Error('Could not retrieve terms or the set is empty.');
+    }
+
+    const termsList = terms.map(t => `- ${t.term}: ${t.definition}`).join('\n');
+
+    const prompt = `
+You are an expert study guide creator. Your task is to **completely regenerate** a study guide based on a provided list of terms and definitions.
+
+However, you must also preserve any images from the current version of the study guide and place them in the correct locations in the new guide.
+
+**Instructions:**
+
+1.  **Analyze the Current Guide:** Review the provided "Current Guide HTML" to identify all \`<img>\` tags and their surrounding context (e.g., which term or definition they appear after).
+2.  **Regenerate from Terms:** Create a new, well-structured study guide in HTML format using **only** the provided "Terms and Definitions" list. Structure it logically with headings (e.g., \`<h2>\`, \`<h3>\`) and paragraphs (\`<p>\`).
+3.  **Re-insert Images:** As you generate the new guide, place the images you identified in step 1 into their correct contextual positions. For example, if an image was after the definition for "Mitochondria," it should appear after the new definition for "Mitochondria."
+4.  **Output HTML Only:** Your final output must be ONLY the raw HTML content for the new guide. Do not include \`\`\`html\`\`\` or any other markdown.
+
+---
+**Current Guide HTML (for image reference):**
+${currentGuideHtml || '<!-- No current guide provided -->'}
+---
+**Terms and Definitions (for content generation):**
+${termsList}
+---
+`;
+
+    const generatedHtml = callGeminiPro(prompt);
+    logger.info('regenerateStudyGuideFromTerms OK', { setId, outputLength: generatedHtml.length });
+    return generatedHtml;
+  } catch (e) {
+    logger.error('regenerateStudyGuideFromTerms fail', e);
+    // Return the error message so the frontend can display it in a toast or modal.
+    return { error: `Failed to regenerate study guide: ${e.message}` };
+  }
+}
+
+function targetedEditStudyGuide(setId, instructions) {
+  logger.info('targetedEditStudyGuide start', { setId });
+  try {
+    if (!instructions || instructions.trim() === '') {
+      throw new Error('Instructions cannot be empty.');
+    }
+
+    const currentGuideHtml = loadStudyGuide(setId);
+
+    const prompt = `
+You are an expert editor. You will be given a study guide in HTML format and a set of instructions.
+Your task is to follow the instructions **strictly** to perform a targeted edit on the study guide.
+- Make only the changes requested in the instructions.
+- Do not add, remove, or modify any other content.
+- Preserve the existing HTML structure as much as possible.
+- Your final output must be ONLY the raw, updated HTML content. Do not include \`\`\`html\`\`\` or any other markdown.
+
+---
+**Current Study Guide HTML:**
+${currentGuideHtml || '<!-- This study guide is currently empty. -->'}
+---
+**Instructions to Follow:**
+${instructions}
+---
+`;
+
+    const updatedHtml = callGeminiPro(prompt); // Using Gemini 2.5 Pro as requested
+    saveStudyGuide(setId, updatedHtml);
+    logger.info('targetedEditStudyGuide OK', { setId, outputLength: updatedHtml.length });
+    return updatedHtml;
+
+  } catch (e) {
+    logger.error('targetedEditStudyGuide fail', e);
+    return { error: `Failed to perform targeted edit: ${e.message}` };
+  }
+}
+
+// ===== Gemini-powered helpers =====
+function explainTermSimply(term, definition) {
+  const prompt = `Explain the following concept. Don't use silly examples.
+Term: "${term}"
+Definition: "${definition}"
+Provide only the simplified explanation.`;
+  try {
+    const text = callGeminiFlash(prompt);
+    logger.info('explainTermSimply OK', { len: (text||'').length });
+    return text;
+  } catch (e) {
+    logger.error('explainTermSimply fail', e);
+    throw new Error(`Gemini could not provide an explanation. Details: ${e.message}`);
+  }
+}
+
+function summarizeStudyGuide(content) {
+  const prompt = `
+Please summarize the following study guide notes.
+Identify the main topics and pull out the key points for each.
+Format the output as clean HTML with an <h2> for the main title ("Summary of Key Points") and <ul>/<li> bullet points for the summary.
+Notes:
+---
+${content}
+---`;
+  try {
+    const text = callGeminiPro(prompt);
+    logger.info('summarizeStudyGuide OK', { len: (text||'').length });
+    return text;
+  } catch(e){
+    logger.error('summarizeStudyGuide fail', e);
+    throw new Error(`Gemini could not summarize the notes. Details: ${e.message}`);
+  }
+}
+
+function addTermAndUpdateGuideGemini(setId, term, definition){
+  logger.info('addTermAndUpdateGuideGemini start', { setId, termLen: (term||'').length });
+  const addRes = addTerms(setId, [{term, definition}]);
+  if (addRes?.error) return addRes;
+
+  try {
+    const current = loadStudyGuide(setId) || '';
+    const prompt = `
+You will be given an existing study guide in HTML.
+Add exactly ONE new term entry for the following term and definition.
+Do not modify or remove any existing content; only insert the new term in an appropriate existing section, or create a new section if necessary.
+Format:
+- Group headings remain as <h2>
+- Each term is an <h3> with its definition immediately following in a paragraph or list.
+Return the full updated HTML ONLY.
+
+Existing guide HTML:
+<<<GUIDE>>>
+${current}
+<<<END GUIDE>>>
+
+New term to add:
+- ${term}: ${definition}
+`;
+    const updated = callGeminiFlash(prompt);
+    saveStudyGuide(setId, updated);
+    logger.info('addTermAndUpdateGuideGemini OK');
+    return { success:true };
+  } catch(e){
+    logger.error('addTermAndUpdateGuideGemini fail', e);
+    return { error:`Failed to update guide with Gemini: ${e.message}` };
+  }
+}
+
+function deleteTermAndRemoveFromStudyGuideGemini(setId, termRowIdOrUuid, term, definition){
+  logger.info('deleteTermAndRemoveFromStudyGuideGemini start', { setId, termRowIdOrUuid });
+  const del = deleteTerm(setId, termRowIdOrUuid);
+  if (del?.error) return del;
+  return removeTermFromStudyGuideWithGemini(setId, term, definition);
+}
+
+function deleteTermsBulkAndRemoveFromStudyGuideGemini(setId, rowIdsOrUuids, pairs){
+  logger.info('deleteTermsBulkAndRemoveFromStudyGuideGemini start', { setId, count: (rowIdsOrUuids||[]).length });
+  const del = deleteTermsBulk(setId, rowIdsOrUuids);
+  if (del?.error) return del;
+  return removeTermsFromStudyGuideWithGemini(setId, pairs||[]);
+}
+
+// Backward-compatible names used by frontend
+function deleteTermAndRemoveFromGuideGemini(setId, termRowIdOrUuid, term, definition){
+  return deleteTermAndRemoveFromStudyGuideGemini(setId, termRowIdOrUuid, term, definition);
+}
+function deleteTermsBulkAndRemoveFromGuideGemini(setId, rowIdsOrUuids, pairs){
+  return deleteTermsBulkAndRemoveFromStudyGuideGemini(setId, rowIdsOrUuids, pairs);
+}
+
+function removeTermFromStudyGuideWithGemini(setId, term, definition){
+  logger.info('removeTermFromStudyGuideWithGemini start', { setId, termLen: (term||'').length });
+  try{
+    const current = loadStudyGuide(setId) || '';
+    const prompt = `
+You will be given an existing study guide in HTML.
+Remove the entry for the specific term listed below, and make NO other changes to the HTML.
+If the term heading appears as <h3>TERM</h3>, remove that heading and the definition block that immediately follows it (until the next <h3> or end of that section).
+Keep all other content exactly the same. Return the full updated HTML ONLY.
+
+Term to remove:
+- ${term}: ${definition}
+
+Existing guide HTML:
+<<<GUIDE>>>
+${current}
+<<<END GUIDE>>>`;
+    const updated = callGeminiPro(prompt);
+    saveStudyGuide(setId, updated);
+    logger.info('removeTermFromStudyGuideWithGemini OK');
+    return { success:true };
+  }catch(e){
+    logger.error('removeTermFromStudyGuideWithGemini fail', e);
+    return { error:`Failed to remove term from guide: ${e.message}` };
+  }
+}
+
+function removeTermsFromStudyGuideWithGemini(setId, terms){
+  logger.info('removeTermsFromStudyGuideWithGemini start', { setId, count: (terms||[]).length });
+  try{
+    const current = loadStudyGuide(setId) || '';
+    const list = (terms||[]).map(t=>`- ${t.term}: ${t.definition||''}`).join('\n');
+    const prompt = `
+You will be given an existing study guide in HTML.
+Remove the entries for the specific terms listed below, and make NO other changes to the HTML.
+For each term heading <h3>TERM</h3>, remove that heading and the definition block that follows (until next <h3> or end of section).
+Return the full updated HTML ONLY.
+
+Terms to remove:
+${list}
+
+Existing guide HTML:
+<<<GUIDE>>>
+${current}
+<<<END GUIDE>>>`;
+    const updated = callGeminiPro(prompt);
+    saveStudyGuide(setId, updated);
+    logger.info('removeTermsFromStudyGuideWithGemini OK');
+    return { success:true };
+  }catch(e){
+    logger.error('removeTermsFromStudyGuideWithGemini fail', e);
+    return { error:`Failed to remove terms from guide: ${e.message}` };
+  }
+}
+
+// ------------- Import with Gemini -------------
+function _cleanJsonText(txt){
+  return String(txt || '').trim()
+    .replace(/^```(?:json)?\s*/i,'')
+    .replace(/```$/,'')
+    .trim();
+}
+function processImportedFile(setId, fileName, mimeType, dataBase64, instructions, updateGuide){
+  logger.info('processImportedFile start', { setId, fileName, mimeType, instructionsLen: (instructions||'').length, updateGuide });
+  try{
+    const parts = [];
+    if (instructions && String(instructions).trim()){
+      parts.push({ text: `Instructions:\n${instructions}\n` });
+    }
+    parts.push({ text: `Extract all key terms and their definitions from the attached file. Return ONLY a valid JSON array where each object has a "term" and a "definition".`});
+    parts.push({ inlineData: { mimeType: mimeType || 'application/octet-stream', data: dataBase64 } });
+
+    let resultText = callGeminiParts_Pro(parts, true); // JSON expected
+    resultText = _cleanJsonText(resultText);
+    const terms = JSON.parse(resultText);
+
+    if(!Array.isArray(terms) || terms.length===0) return { error:'No terms detected.' };
+    const clean = terms
+      .filter(t=>t && typeof t.term==='string' && typeof t.definition==='string')
+      .map(t=>({ term: t.term.trim(), definition: t.definition.trim() }))
+      .filter(t=>t.term && t.definition);
+
+    if(clean.length===0) return { error:'No valid terms detected.' };
+
+    const addRes = addTerms(setId, clean);
+    if(addRes?.error) return addRes;
+
+    if(updateGuide){
+      try{
+        const current = loadStudyGuide(setId) || '';
+        const prompt = `
+You will be given an existing study guide in HTML and a list of NEW terms.
+Add these new terms into appropriate places (or create a new section) while keeping all existing content unchanged.
+Do not modify existing terms' text. Return the FULL updated HTML ONLY.
+
+Existing guide HTML:
+<<<GUIDE>>>
+${current}
+<<<END GUIDE>>>
+
+New terms (JSON):
+${JSON.stringify(clean)}`;
+        const updated = callGeminiPro(prompt);
+        saveStudyGuide(setId, updated);
+      }catch(e){ return { error:`Added terms but failed to update guide: ${e.message}` }; }
+    }
+    logger.info('processImportedFile OK', { setId, termsAdded: clean.length, guideUpdated: !!updateGuide });
+    return { success:true };
+  }catch(e){
+    logger.error('processImportedFile fail', e);
+    return { error:`Import failed: ${e.message}` };
+  }
+}
+
+// ============= Central Gemini callers (v1beta) =============
+function callGemini(model, prompt, isJson){
+  if (!GEMINI_API_KEY || GEMINI_API_KEY==='YOUR_GEMINI_API_KEY_HERE') throw new Error('Missing Gemini API Key.');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  const payload = { contents: [{ parts: [{ text: prompt }]}], generationConfig: {} };
+  if (isJson) payload.generationConfig.responseMimeType = "application/json";
+  const res = UrlFetchApp.fetch(url, { method:'post', contentType:'application/json', payload:JSON.stringify(payload), muteHttpExceptions:true });
+  const code = res.getResponseCode();
+  const body = res.getContentText();
+  if (code!==200){ logger.error('Gemini error', { code, body }); throw new Error(`The API returned an error (Code: ${code}).`); }
+  const obj = JSON.parse(body);
+  const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!text){ throw new Error('Empty response from Gemini.'); }
+  return text;
+}
+
+function callGeminiParts(model, parts, isJson){
+  if (!GEMINI_API_KEY || GEMINI_API_KEY==='YOUR_GEMINI_API_KEY_HERE') throw new Error('Missing Gemini API Key.');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  const payload = { contents: [{ parts: parts }], generationConfig: {} };
+  if (isJson) payload.generationConfig.responseMimeType = "application/json";
+  const res = UrlFetchApp.fetch(url, { method:'post', contentType:'application/json', payload:JSON.stringify(payload), muteHttpExceptions:true });
+  const code = res.getResponseCode();
+  const body = res.getContentText();
+  if (code!==200){ logger.error('Gemini parts error', { code, body }); throw new Error(`The API returned an error (Code: ${code}).`); }
+  const obj = JSON.parse(body);
+  const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!text){ throw new Error('Empty response from Gemini.'); }
+  return text;
+}
+
+function callGeminiPro(prompt, isJson){ return callGemini('gemini-2.5-pro', prompt, isJson); }
+function callGeminiFlash(prompt, isJson){ return callGemini('gemini-2.5-flash', prompt, isJson); }
+function callGeminiParts_Pro(parts, isJson){ return callGeminiParts('gemini-2.5-pro', parts, isJson); }
