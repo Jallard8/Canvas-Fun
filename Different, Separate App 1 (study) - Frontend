@@ -624,6 +624,11 @@
   // =====================
   const $id = (x) => document.getElementById(x);
   function escapeHTML(str=''){ return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function isSafeUrl(url) {
+    if (!url) return false;
+    // Allow http:// and https:// links only
+    return /^https?:\/\//i.test(url.trim());
+  }
   function speakText(text){
     if('speechSynthesis' in window){
       const strippedText = new DOMParser().parseFromString(text, "text/html").documentElement.textContent;
@@ -2188,6 +2193,7 @@
     safeOn(insertImageConfirm,'click', ()=>{
       const url = (insertImageUrl?.value||'').trim();
       if(!url){ showInfo('Missing URL','<p>Please paste an image URL.</p>'); return; }
+      if(!isSafeUrl(url)){ alert('Invalid URL. Only http:// and https:// links are allowed.'); return; }
 
       const width = ($id('insert-image-width')?.value || '').trim();
       const height = ($id('insert-image-height')?.value || '').trim();
@@ -2385,7 +2391,13 @@
 
           if (command === 'createLink') {
             const url = prompt('Enter the URL:');
-            if (url) document.execCommand('createLink', false, url);
+            if (url) {
+              if (isSafeUrl(url)) {
+                document.execCommand('createLink', false, url);
+              } else {
+                alert('Invalid URL. Only http:// and https:// links are allowed.');
+              }
+            }
           } else if (command === 'foreColor' || command === 'backColor') {
             const color = prompt('Enter a color value (e.g., #FF0000 or red):');
             if (color) document.execCommand(command, false, color);
@@ -2556,6 +2568,7 @@
   function insertImageIntoGuide(url, width, height){
     const guide = $id('study-guide-content-overview');
     if(!guide) return;
+    if(!isSafeUrl(url)){ console.warn('Blocked attempt to insert image with unsafe URL:', url); return; }
     guide.focus();
 
     const img = document.createElement('img');
