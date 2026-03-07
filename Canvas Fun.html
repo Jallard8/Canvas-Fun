@@ -576,7 +576,9 @@
 
   placeOImage("minus", "189PivQOFRutWlgr6_Y6Azp942W1jcghM", "minus", 50, 1455, 470);
   $("#minus").click(function (event) {
-    size = size - 1;
+    if (size > 1) {
+      size = size - 1;
+    }
   });
 
   placeOImage("manualSize", "1OQKhjDTwAL-eufTq6iPTG7-9vC0S_wqu", "manualSize", 50, 1520, 470);
@@ -584,7 +586,7 @@
     ssize = prompt("Using ONLY digits, please enter the new size for your paintbrush.");
     testingV = Number(ssize);
     if (ssize !== "" && ssize !== null) {
-      if (!isNaN(testingV)) {
+      if (!isNaN(testingV) && testingV >= 1) {
         size = Number(ssize);
         log('Changed size manually:', size);
         toast({ message: `Size changed to ${size}` });
@@ -851,7 +853,9 @@
                 toast({ message: `Color changed to ${color}` });
             }
 		} else if (direction === "-") {
-			size = size - 1
+			if (size > 1) {
+				size = size - 1;
+			}
 		} else if (direction === "+") {
 			size = size + 1
 		} else if (direction === "u") {
@@ -955,7 +959,7 @@
 		locationDisplay.move();
 		locationDisplay.xSpeed = 0;
 		locationDisplay.ySpeed = 0;
-		ctxl.stroke;
+		ctxl.stroke();
 		ctxl.strokeRect(0, 0, width, height);
 		if (ctx.strokeStyle !== "aqua") {
 			locationColor = "Aqua";
@@ -965,6 +969,8 @@
 			locationColor = "Aqua";
 			ctxl.strokeStyle = "aqua";
 		};
+	});
+
     $("#moveLeft").click(function (event) {
       direction = "left";
       ball.setDirection(direction);
@@ -985,7 +991,6 @@
       ball.setDirection(direction);
       locationDisplay.setDirection(direction);
     });
-	});
 	
 	//Creating a *ball*
 	new(function () {
