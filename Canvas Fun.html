@@ -2,6 +2,15 @@
 <html>
 <head>
 	<title>Canvas Fun℠ Ver 6.5</title>
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+    <style>
+    /* Toasts */
+    #toast-stack { position:fixed; left:16px; bottom:16px; display:flex; flex-direction:column; gap:10px; z-index:60; }
+    .toast { min-width:260px; max-width:360px; background:#0f172a; color:white; border-radius:12px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; box-shadow:0 10px 15px -3px rgba(0,0,0,.2); }
+    .toast .spinner { width:18px; height:18px; border:3px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite; margin-top:2px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 
 <body>
@@ -22,9 +31,34 @@
 
   
 	
+  <!-- Toast Stack -->
+  <div id="toast-stack"></div>
+
 	<script>
 	
 	//Setup:
+    function log(...args){ try{ console.log('[CanvasFun]', new Date().toISOString(), ...args); }catch(_){} }
+
+    const toastStack = document.getElementById('toast-stack');
+    function escapeHTML(str=''){ return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    function toast({message, kind='info', spinner=false, ttl=3500}){
+        if(!toastStack) return;
+        const t = document.createElement('div');
+        t.className = 'toast';
+        t.innerHTML = `${spinner ? '<div class="spinner"></div>' : '<span class="material-icons-outlined">info</span>'}
+          <div style="font-family: sans-serif; font-size: 14px; line-height: 1.25;">${escapeHTML(message)}</div>`;
+        toastStack.appendChild(t);
+        if(ttl>0){ setTimeout(()=>{ t.remove(); }, ttl); }
+        return {
+          done(success=true,msg){
+            t.innerHTML = `<span class="material-icons-outlined">${success?'check_circle':'error'}</span>
+              <div style="font-family: sans-serif; font-size: 14px; line-height: 1.25;">${escapeHTML(msg || (success?'Done.':'Failed.'))}</div>`;
+            setTimeout(()=>t.remove(), 2500);
+          }
+        };
+    }
+
 	
 	
 	//Set the paintbrush starting size
@@ -216,6 +250,8 @@
 		color = nColor;
 		ctx.strokeStyle = id;
 		ctx.fillStyle = id;
+        log('Changed color via palette:', nColor);
+        toast({ message: `Color changed to ${nColor}` });
 	  });
   };
 	
@@ -281,6 +317,8 @@
     ctx.fillStyle = "Black";
     ctx.strokeStyle = "Black";
     ctx.clearRect(0, 0, width, height);
+    log('Canvas reset');
+    toast({ message: 'Canvas reset' });
   };
   
 	$("#resetCanvas").click(function (event) {
@@ -386,8 +424,12 @@
 	placeOImage("manual", "1yTN95IlDj-UBpr3c3NACpcN8JJDKR2LL", "manual", 55, 1260, 773);
 	$("#manual").click(function (event) {
     color = prompt("In ONE word, please enter the new color you'd like to draw with.");
-	  ctx.strokeStyle = color;
-	  ctx.fillStyle = color;
+    if (color) {
+	    ctx.strokeStyle = color;
+	    ctx.fillStyle = color;
+        log('Changed color manually:', color);
+        toast({ message: `Color changed to ${color}` });
+    }
   });
   
 	//Place and Setup *Palette*
@@ -488,6 +530,8 @@
 			ctx.strokeStyle = "darkgreen";
 			ctx.fillStyle = "darkgreen";
 		};
+    log('Cycled color via palette to:', color);
+    toast({ message: `Color cycled to ${color}` });
   };
 
 	$("#palette").click(function (event) {
@@ -506,20 +550,22 @@
   
   var enteringLocation2 = function() {
 	var yCE = prompt("Using ONLY digits, please enter the new Y coordinates for your paintbrush.  Range: 0-700.");
-	if (!isNaN(yCE) && Number(yCE) <= 700 && Number(yCE) >= 0) {
+	if (!isNaN(yCE) && Number(yCE) <= 700 && Number(yCE) >= 0 && yCE !== "") {
 		drawingYC = Number(yCE);
 		ball.y = Number(yCE);
-	} else {
+        log(`Brush location changed to X: ${drawingXC}, Y: ${drawingYC}`);
+        toast({ message: `Location moved to X: ${drawingXC}, Y: ${drawingYC}` });
+	} else if (yCE !== null) {
 		enteringLocation2();
 	};
   };
   var enteringLocation = function() {
 	var xCE = prompt("Using ONLY digits, please enter the new X coordinates for your paintbrush.  Range: 0-800.");
-	if (!isNaN(xCE) && Number(xCE) <= 800 && Number(xCE) >= 0) {
+	if (!isNaN(xCE) && Number(xCE) <= 800 && Number(xCE) >= 0 && xCE !== "") {
 		drawingXC = Number(xCE);
 		ball.x = Number(xCE);
 		enteringLocation2();
-	} else {
+	} else if (xCE !== null) {
 		enteringLocation();
 	};
   };
@@ -537,9 +583,11 @@
   var manualSizePrompt = function () {
     ssize = prompt("Using ONLY digits, please enter the new size for your paintbrush.");
     testingV = Number(ssize);
-    if (ssize != "") {
+    if (ssize !== "" && ssize !== null) {
       if (!isNaN(testingV)) {
         size = Number(ssize);
+        log('Changed size manually:', size);
+        toast({ message: `Size changed to ${size}` });
       } else {
         manualSizePrompt();
       };
@@ -572,7 +620,8 @@
     thumbsUp.src = "https://lh3.googleusercontent.com/d/1YjkSp9sP2vG_oiHhiISohmGg0WzmFMmw";
     thumbsDown.src = "https://lh3.googleusercontent.com/d/1LJm3ibCHxnmVX27_PsZOO9ADuRQBKBTP";
     mouseOption = true;
-	alert("You have activated the Draw with Mouse when Clicking feature.  This temporarily disables drawing with the arrow keys.  To stop drawing with the mouse and restart drawing with the arrow keys, simply select the 'Thumbs Down' botton.");
+    log('Activated draw with mouse');
+    toast({ message: "Activated Draw with Mouse. Arrow keys temporarily disabled.", ttl: 5000 });
   });
 
   placeOImage("thumbsDown", "13IOEMlbncV2el0Rir17a0ngOGPxPSpwi", "thumbsDown", 50, 1557, 725);
@@ -580,6 +629,8 @@
     thumbsUp.src = "https://lh3.googleusercontent.com/d/1SeSXDeznqWC5GJqWvwF95CaH-P5a4yrE";
     thumbsDown.src = "https://lh3.googleusercontent.com/d/13IOEMlbncV2el0Rir17a0ngOGPxPSpwi";
     mouseOption = false;
+    log('Deactivated draw with mouse');
+    toast({ message: "Deactivated Draw with Mouse. Arrow keys re-enabled." });
   });
   
   var drawingXC = 400;
@@ -591,7 +642,7 @@
 		dragging = true;
 		drawingXC = event.clientX - 275
 		drawingYC = event.clientY - 150
-		console.log(event.clientX + ", " + event.clientY);
+		log("Mouse down at: " + event.clientX + ", " + event.clientY);
 	};
   });
   $("#canvas").mousemove(function(event) {
@@ -599,7 +650,6 @@
 		if (dragging == true) {
 			drawingXC = event.clientX - 275
 			drawingYC = event.clientY - 150
-			console.log(event.clientX + ", " + event.clientY);
 		};
 	};
   });
@@ -608,7 +658,7 @@
 		if (dragging == true) {
 			drawingXC = event.clientX - 275
 			drawingYC = event.clientY - 150
-			console.log(event.clientX + ", " + event.clientY);
+			log("Mouse up at: " + event.clientX + ", " + event.clientY);
 			dragging = false;
 		};
 	};
@@ -794,8 +844,12 @@
 			this.ySpeed = 0;
 		} else if (direction === "j") {
 			color = prompt("In ONE word, please enter the new color you'd like to draw with.")
-			ctx.strokeStyle = color;
-			ctx.fillStyle = color;
+            if (color) {
+			    ctx.strokeStyle = color;
+			    ctx.fillStyle = color;
+                log('Changed color manually (via j):', color);
+                toast({ message: `Color changed to ${color}` });
+            }
 		} else if (direction === "-") {
 			size = size - 1
 		} else if (direction === "+") {
@@ -823,11 +877,14 @@
 			thumbsUp.src = "https://lh3.googleusercontent.com/d/1YjkSp9sP2vG_oiHhiISohmGg0WzmFMmw";
 			thumbsDown.src = "https://lh3.googleusercontent.com/d/1LJm3ibCHxnmVX27_PsZOO9ADuRQBKBTP";
 			mouseOption = true;
-			alert("You have activated the Draw with Mouse when Clicking feature.  This temporarily disables drawing with the arrow keys.  To stop drawing with the mouse and restart drawing with the arrow keys, simply select the 'Thumbs Down' botton.");
+			log('Activated draw with mouse (via m)');
+			toast({ message: "Activated Draw with Mouse. Arrow keys temporarily disabled.", ttl: 5000 });
 		} else {
 			thumbsUp.src = "https://lh3.googleusercontent.com/d/1SeSXDeznqWC5GJqWvwF95CaH-P5a4yrE";
 			thumbsDown.src = "https://lh3.googleusercontent.com/d/13IOEMlbncV2el0Rir17a0ngOGPxPSpwi";
 			mouseOption = false;
+            log('Deactivated draw with mouse (via m)');
+            toast({ message: "Deactivated Draw with Mouse. Arrow keys re-enabled." });
 		};
 	};
 };
