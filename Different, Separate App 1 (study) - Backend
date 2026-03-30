@@ -213,19 +213,21 @@ function deleteSet(setId) {
     const sets = _setsSheet();
     const terms = _termsSheet();
 
-    // remove from Sets
+    // remove from Sets (batch)
     const svals = sets.getDataRange().getValues();
-    // Iterate backwards to safely delete rows and handle potential duplicates.
-    for (let i = svals.length - 1; i >= 1; i--) {
-      if (svals[i][1] === setId) {
-        sets.deleteRow(i + 1);
-      }
+    const filteredSets = svals.filter((row, i) => i === 0 || row[1] !== setId);
+    if (filteredSets.length < svals.length) {
+      sets.clear();
+      sets.getRange(1, 1, filteredSets.length, svals[0].length).setValues(filteredSets);
     }
-    // remove related terms
+
+    // remove related terms (batch)
     const tvals = terms.getDataRange().getValues();
-    let removed=0;
-    for (let i=tvals.length-1;i>=1;i--){
-      if (tvals[i][0] === setId) { terms.deleteRow(i+1); removed++; }
+    const filteredTerms = tvals.filter((row, i) => i === 0 || row[0] !== setId);
+    const removed = tvals.length - filteredTerms.length;
+    if (removed > 0) {
+      terms.clear();
+      terms.getRange(1, 1, filteredTerms.length, tvals[0].length).setValues(filteredTerms);
     }
     SpreadsheetApp.flush();
     logger.info('deleteSet OK', { setId, termsRemoved: removed });
